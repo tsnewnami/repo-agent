@@ -8,5 +8,8 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Other
 .env
 gh_issues.db
+.cache

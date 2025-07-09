@@ -391,6 +391,7 @@ dependencies = [
     { name = "datasets" },
     { name = "dotenv" },
     { name = "pydantic" },
+    { name = "tqdm" },
 ]
 
 [package.metadata]
@@ -398,6 +399,7 @@ requires-dist = [
     { name = "datasets", specifier = ">=3.6.0" },
     { name = "dotenv", specifier = ">=0.9.9" },
     { name = "pydantic", specifier = ">=2.11.7" },
+    { name = "tqdm", specifier = ">=4.67.1" },
 ]
 
 [[package]]
