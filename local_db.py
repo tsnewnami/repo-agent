@@ -4,7 +4,7 @@ import logging
 from datasets import load_dataset, Dataset, Features, Value, Sequence
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, "data", "gh_issues.db")
+DB_PATH = os.path.join(BASE_DIR, "gh_issues.db")
 
 DATASET_ID = "mlfoundations-dev/github-issues"
 
@@ -73,6 +73,7 @@ INSERT INTO github_issues_fts (rowid, title, body, repo_name, user)
 SELECT id, title, body, repo_name, user FROM github_issues;
 """
 
+# --- Functions ---
 def load_github_issues_dataset():
     """
     Load the GitHub issues dataset from HuggingFace with proper schema validation.
@@ -126,3 +127,18 @@ def load_github_issues_dataset():
         logging.error(f"Failed to load dataset {DATASET_ID}: {str(e)}")
         raise
 
+def create_database(db_path: str):
+    """
+    Create the SQLite database with tables, indexes, and triggers.
+    """
+    logging.info(f"Creating SQLite database and tables at: {db_path}")
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.executescript(SQL_CREATE_TABLES)
+    conn.commit()
+    conn.close()
+    logging.info("Database tables created successfully.")
+
+
+if __name__ == "__main__":
+    create_database(DB_PATH)
