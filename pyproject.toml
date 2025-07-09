@@ -8,5 +8,6 @@ dependencies = [
     "datasets>=3.6.0",
     "dotenv>=0.9.9",
     "pydantic>=2.11.7",
+    "richer>=0.1.6",
     "tqdm>=4.67.1",
 ]
