@@ -1,6 +1,7 @@
 import sqlite3
 import os
-from datasets import load_dataset
+import logging
+from datasets import load_dataset, Dataset, Features, Value, Sequence
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "data", "gh_issues.db")
@@ -71,3 +72,57 @@ END;
 INSERT INTO github_issues_fts (rowid, title, body, repo_name, user) 
 SELECT id, title, body, repo_name, user FROM github_issues;
 """
+
+def load_github_issues_dataset():
+    """
+    Load the GitHub issues dataset from HuggingFace with proper schema validation.
+    
+    Returns:
+        Dataset: The loaded dataset with validated schema
+    """
+    logging.info(f"Loading GitHub issues dataset from {DATASET_ID}")
+    
+    # Define the expected schema for validation
+    features = Features({
+        'repo_name': Value('string'),
+        'topic': Value('string'), 
+        'issue_number': Value('int64'),
+        'title': Value('string'),
+        'body': Value('string'),
+        'open': Value('bool'),
+        'created_at': Value('string'),  # ISO 8601 timestamp
+        'updated_at': Value('string'),  # ISO 8601 timestamp
+        'url': Value('string'),
+        'labels': Sequence(Value('string')),  # Array of label strings
+        'user': Value('string'),
+        'comments': Value('int64')
+    })
+    
+    try:
+        logging.info("Downloading dataset from HuggingFace...")
+        dataset = load_dataset(
+            DATASET_ID,
+            features=features,
+            cache_dir=os.path.join(BASE_DIR, ".cache")
+        )
+        
+        # Validate dataset type
+        if not isinstance(dataset, Dataset):
+            raise TypeError(f"Expected dataset to be a dict, got {type(dataset)}")
+        
+        
+        # Get the train split (main data)
+        train_dataset = dataset['train']
+        
+        # Validate train dataset type
+        if not isinstance(train_dataset, Dataset):
+            raise TypeError(f"Expected train dataset to be a Dataset instance, got {type(train_dataset)}")
+        
+        logging.info(f"Successfully loaded dataset with {len(train_dataset)} records")
+        
+        return train_dataset
+        
+    except Exception as e:
+        logging.error(f"Failed to load dataset {DATASET_ID}: {str(e)}")
+        raise
+
