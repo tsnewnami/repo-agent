@@ -13,3 +13,4 @@ wheels/
 .env
 gh_issues.db
 .cache
+.litellm_cache
