@@ -1,5 +1,5 @@
 import asyncio
-import os
+import json
 import logging
 from dotenv import load_dotenv
 from rich import print
@@ -14,7 +14,7 @@ async def run_agent(repo: str,input: str) -> str:
     SYSTEM_PROMPT = """
         Use the tools provided to answer the user's question. Use the tools to answer the question.
     """
-    MAX_TURNS = 2
+    MAX_TURNS = 1
 
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
@@ -27,7 +27,8 @@ async def run_agent(repo: str,input: str) -> str:
         """
         return search_issues(repo, keywords)
     
-    # Build OpenAI tool specification with proper 'type' field
+    tools = [search_repo, read_issue]
+    tools_by_name = {tool.__name__: tool for tool in tools}
     tools = [
         {
             "type": "function",
@@ -49,15 +50,25 @@ async def run_agent(repo: str,input: str) -> str:
             tools=tools,
         )
 
+        print(response)
         messages.append(
             {"role": "assistant", "content": response.choices[0].message.content}
         )
-        print(response)
         
+        for tool_call in response.choices[0].message.tool_calls:
+            tool_name: str = tool_call.function.name # type: ignore
+            if tool_name in tools_by_name:
+                tool_args = json.loads(tool_call.function.arguments)
+                tool_to_call = tools_by_name[tool_name]
+                tool_result = tool_to_call(**tool_args)
+                print(f"TOOL RESULT: {tool_result}")
+                messages.append(
+                    {"role": "tool", "content": tool_result}
+                )
         turns += 1
         
         return messages[-1]["content"]
     
 
 if __name__ == "__main__":
-    asyncio.run(run_agent("pytorch/pytorch", "When was there tensor issues"))
+    asyncio.run(run_agent("pytorch/pytorch", "When was there tensor issues using cuda?"))
