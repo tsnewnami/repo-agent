@@ -279,6 +279,59 @@ def generate_database(overwrite: bool = False):
     logging.info(f"Database generation process completed for {DB_PATH}.")
 
 
+def print_repo_row_counts(db_path: str = DB_PATH):
+    """
+    Print the number of rows (issues) for each repository in the database.
+    
+    Args:
+        db_path: Path to the SQLite database file. Defaults to DB_PATH.
+    """
+    if not os.path.exists(db_path):
+        logging.error(f"Database file does not exist: {db_path}")
+        print(f"Error: Database file does not exist: {db_path}")
+        return
+    
+    logging.info(f"Counting rows by repo_name in database: {db_path}")
+    
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute("""
+            SELECT repo_name, COUNT(*) as issue_count
+            FROM github_issues
+            GROUP BY repo_name
+            ORDER BY issue_count DESC
+        """)
+        
+        results = cursor.fetchall()
+        
+        if not results:
+            print("No data found in the database.")
+            return
+        
+        print(f"\nRepository Issue Counts:")
+        print("-" * 50)
+        print(f"{'Repository Name':<40} {'Issue Count':<10}")
+        print("-" * 50)
+        
+        total_issues = 0
+        for repo_name, count in results:
+            print(f"{repo_name:<40} {count:<10}")
+            total_issues += count
+        
+        print("-" * 50)
+        print(f"{'Total Issues':<40} {total_issues:<10}")
+        print(f"{'Total Repositories':<40} {len(results):<10}")
+        
+    except sqlite3.Error as e:
+        logging.error(f"Database error: {e}")
+        print(f"Database error: {e}")
+    finally:
+        conn.close()
+
+
 if __name__ == "__main__":
     print("Creating database...")
-    generate_database(overwrite=True)
+    generate_database(overwrite=False)
+    print_repo_row_counts()

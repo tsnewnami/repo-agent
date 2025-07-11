@@ -119,5 +119,5 @@ async def run_agent(repo: str,input: str) -> FinalAnswer | None:
     return None 
 
 if __name__ == "__main__":
-    answer = asyncio.run(run_agent("pytorch/pytorch", "What is the issue with cuda?"))
+    answer = asyncio.run(run_agent("pytorch/pytorch", "Tell me the scenarios where there were memory leaks"))
     print(f"Answer: {answer}")
