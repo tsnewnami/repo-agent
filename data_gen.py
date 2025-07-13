@@ -96,7 +96,7 @@ class GeneratedSyntheticQuery(BaseModel):
     question: str
     answer: str
     repo: str
-    issue: int
+    issues: List[int]
     how_realistic: float = Field(
         ...,
         description="Give a score between 0 and 1 on how realistic this question is. That is, how likely is it that the user would actually ask this question of their inbox?",
@@ -113,10 +113,10 @@ async def generate_synthetic_qa_pairs_for_repo(repo: str, batch: List[IssueSnipp
     
     SYSTEM_PROMPT = dedent(
         f"""
-        You are an assistant that creates realistic question–answer pairs a human might ask about a github issue in a repo.
-        Every answer MUST be fully contained in the provided issue. Do NOT hallucinate.
+        You are an assistant that creates realistic question–answer pairs a human might ask about github issues in a repo.
+        Every answer MUST be fully contained in the provided issues. Do NOT hallucinate.
 
-        Do not include the issue number in the question.
+        Do not include the issue numbers in the question.
 
         Respond with a JSON object with the following structure:
         {Response.model_json_schema()}
@@ -130,7 +130,7 @@ async def generate_synthetic_qa_pairs_for_repo(repo: str, batch: List[IssueSnipp
         {batch}
         ---
 
-        Generate diverse question–answer pairs for each issue.
+        Generate 8 diverse question–answer pairs for the batch of issues.
         """
     ).strip()
     
@@ -160,7 +160,7 @@ async def generate_synthetic_data_for_repo(repo: str, batch_size: int = 20) -> L
             print(qa_pair.question)
             print(qa_pair.answer)
             print(qa_pair.repo)
-            print(qa_pair.issue)
+            print(qa_pair.issues)
             print(qa_pair.how_realistic)
             print("-" * 100)
         
@@ -168,4 +168,5 @@ async def generate_synthetic_data_for_repo(repo: str, batch_size: int = 20) -> L
 
 if __name__ == "__main__":
     import asyncio
-    asyncio.run(generate_synthetic_data_for_repo("grok-ai/nn-template")) 
+    asyncio.run(generate_synthetic_data_for_repo("mkhorasani/Streamlit-Authenticator")) 
+    

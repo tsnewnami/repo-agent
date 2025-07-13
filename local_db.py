@@ -5,73 +5,70 @@ from datasets import load_dataset, Dataset, Features, Value, Sequence
 from tqdm import tqdm
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, "gh_issues.db")
-
-DATASET_ID = "mlfoundations-dev/github-issues"
+DB_PATH = os.path.join(BASE_DIR, "github_code.db")
 
 # --- Database Schema ---
 SQL_CREATE_TABLES = """
-DROP TABLE IF EXISTS github_issues_fts;
-DROP TABLE IF EXISTS github_issues;
+DROP TABLE IF EXISTS github_code_fts;
+DROP TABLE IF EXISTS github_code;
 
-CREATE TABLE github_issues (
+CREATE TABLE github_code (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    repo_name TEXT NOT NULL,
-    topic TEXT,
-    issue_number INTEGER NOT NULL,
-    title TEXT NOT NULL,
-    body TEXT,
-    open BOOLEAN,
-    created_at TEXT, -- Store as ISO 8601 string 'YYYY-MM-DD HH:MM:SS'
-    updated_at TEXT, -- Store as ISO 8601 string 'YYYY-MM-DD HH:MM:SS'
-    url TEXT,
-    labels TEXT, -- JSON array stored as text
-    user TEXT,
-    comments INTEGER DEFAULT 0,
+    repository_name TEXT NOT NULL,
+    func_path_in_repository TEXT NOT NULL,
+    func_name TEXT NOT NULL,
+    whole_func_string TEXT NOT NULL,
+    language TEXT NOT NULL,
+    func_code_string TEXT,
+    func_code_tokens TEXT, -- JSON array stored as text
+    func_documentation_string TEXT,
+    func_documentation_tokens TEXT, -- JSON array stored as text
+    split_name TEXT,
+    func_code_url TEXT,
     
-    UNIQUE(repo_name, issue_number)
+    UNIQUE(repository_name, func_path_in_repository, func_name)
 );
 """
 
 SQL_CREATE_INDEXES_TRIGGERS = """
-CREATE INDEX idx_github_issues_repo_name ON github_issues(repo_name);
-CREATE INDEX idx_github_issues_topic ON github_issues(topic);
-CREATE INDEX idx_github_issues_repo_issue ON github_issues(repo_name, issue_number);
-CREATE INDEX idx_github_issues_open ON github_issues(open);
-CREATE INDEX idx_github_issues_created_at ON github_issues(created_at);
-CREATE INDEX idx_github_issues_user ON github_issues(user);
-CREATE INDEX idx_github_issues_repo_topic_open ON github_issues(repo_name, topic, open);
-CREATE INDEX idx_github_issues_topic_created ON github_issues(topic, created_at);
+CREATE INDEX idx_github_code_repository_name ON github_code(repository_name);
+CREATE INDEX idx_github_code_language ON github_code(language);
+CREATE INDEX idx_github_code_func_name ON github_code(func_name);
+CREATE INDEX idx_github_code_split_name ON github_code(split_name);
+CREATE INDEX idx_github_code_repo_lang ON github_code(repository_name, language);
+CREATE INDEX idx_github_code_repo_path_func ON github_code(repository_name, func_path_in_repository, func_name);
 
-CREATE VIRTUAL TABLE github_issues_fts USING fts5(
-    title,
-    body,
-    repo_name,
-    user,
-    content='github_issues',
+CREATE VIRTUAL TABLE github_code_fts USING fts5(
+    func_name,
+    whole_func_string,
+    func_documentation_string,
+    repository_name,
+    language,
+    content='github_code',
     content_rowid='id'
 );
 
-CREATE TRIGGER github_issues_ai AFTER INSERT ON github_issues BEGIN
-    INSERT INTO github_issues_fts (rowid, title, body, repo_name, user)
-    VALUES (new.id, new.title, new.body, new.repo_name, new.user);
+CREATE TRIGGER github_code_ai AFTER INSERT ON github_code BEGIN
+    INSERT INTO github_code_fts (rowid, func_name, whole_func_string, func_documentation_string, repository_name, language)
+    VALUES (new.id, new.func_name, new.whole_func_string, new.func_documentation_string, new.repository_name, new.language);
 END;
 
-CREATE TRIGGER github_issues_ad AFTER DELETE ON github_issues BEGIN
-    DELETE FROM github_issues_fts WHERE rowid=old.id;
+CREATE TRIGGER github_code_ad AFTER DELETE ON github_code BEGIN
+    DELETE FROM github_code_fts WHERE rowid=old.id;
 END;
 
-CREATE TRIGGER github_issues_au AFTER UPDATE ON github_issues BEGIN
-    UPDATE github_issues_fts SET 
-        title=new.title, 
-        body=new.body, 
-        repo_name=new.repo_name, 
-        user=new.user 
+CREATE TRIGGER github_code_au AFTER UPDATE ON github_code BEGIN
+    UPDATE github_code_fts SET 
+        func_name=new.func_name,
+        whole_func_string=new.whole_func_string,
+        func_documentation_string=new.func_documentation_string,
+        repository_name=new.repository_name,
+        language=new.language
     WHERE rowid=old.id;
 END;
 
-INSERT INTO github_issues_fts (rowid, title, body, repo_name, user) 
-SELECT id, title, body, repo_name, user FROM github_issues;
+INSERT INTO github_code_fts (rowid, func_name, whole_func_string, func_documentation_string, repository_name, language) 
+SELECT id, func_name, whole_func_string, func_documentation_string, repository_name, language FROM github_code;
 """
 
 # --- Functions ---

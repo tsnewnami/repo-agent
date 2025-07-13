@@ -14,3 +14,4 @@ wheels/
 gh_issues.db
 .cache
 .litellm_cache
+/data
