@@ -7,7 +7,6 @@ from data_types import Issue
 
 conn = None
 
-
 def get_conn():
     global conn
     if conn is None:

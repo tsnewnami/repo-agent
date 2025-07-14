@@ -11,7 +11,7 @@ wheels/
 
 # Other
 .env
-gh_issues.db
+github_code.db
 .cache
 .litellm_cache
 /data

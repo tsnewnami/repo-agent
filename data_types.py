@@ -1,20 +1,14 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Literal, Optional
 
-class Issue(BaseModel):
+class Function(BaseModel):
     repo_name: str  # NOT NULL
-    topic: Optional[str] = None
-    issue_number: int  # NOT NULL
-    title: str  # NOT NULL
-    body: Optional[str] = None
-    open: Optional[bool] = None
-    created_at: Optional[str] = None  # ISO 8601 timestamp
-    updated_at: Optional[str] = None  # ISO 8601 timestamp
-    url: Optional[str] = None
-    labels: Optional[str] = None  # JSON array stored as text
-    user: Optional[str] = None
-    comments: Optional[int] = 0  # Default 0
-
+    func_path_in_repository: str  # NOT NULL
+    func_name: str  # NOT NULL
+    whole_func_string: str  # NOT NULL
+    language: str  # NOT NULL
+    func_code_string: str  # NOT NULL
+    func_documentation_string: str  # NOT NULL
 
 class SyntheticQuery(BaseModel):
     id: int
