@@ -245,30 +245,6 @@ def generate_database(languages: list[str], overwrite: bool = False, db_path: st
     create_indexes_triggers(db_path)
 
     logging.info(f"Database generation process completed for {db_path}.")
-    
-def get_repository_counts(db_path: str):
-    """
-    Return a nested dictionary mapping each repository_name to a dict of split_name to count.
-    Args:
-        db_path: Path to the SQLite database
-    Returns:
-        dict: {repository_name: {split_name: count}}
-    """
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    cursor.execute("""
-        SELECT repository_name, split_name, COUNT(*)
-        FROM github_code
-        GROUP BY repository_name, split_name
-    """)
-    result = {}
-    for repo, split, count in cursor.fetchall():
-        if repo not in result:
-            result[repo] = {}
-        result[repo][split] = count
-    conn.close()
-    logging.info(f"Repository counts by split: {result}")
-    return result
 
 def get_first_n_from_repo(repo_name: str, n: int = 3, db_path: str = DB_PATH):
     """
@@ -304,5 +280,5 @@ def get_first_n_from_repo(repo_name: str, n: int = 3, db_path: str = DB_PATH):
     return ret
 
 if __name__ == "__main__":
-    # generate_database(languages=["python"], overwrite=True)
+    generate_database(languages=["python"])
     print(get_first_n_from_repo("bcbio/bcbio-nextgen"))

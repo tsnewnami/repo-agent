@@ -90,7 +90,6 @@ async def run_agent(repo: str,input: str) -> FinalAnswer | None:
         )
 
         response_message = response.choices[0].message
-        print(f"RESPONSE: {response_message}")
         if response.choices[0] is None:
             print("Response message is None")
         
@@ -103,16 +102,15 @@ async def run_agent(repo: str,input: str) -> FinalAnswer | None:
             logging.error(f"Response message has no tool calls for turn {turns}")
             return None
         
-        # print(f"RESPONSE: {response}")
+        print(f"RESPONSE: {response}")
         for tool_call in response.choices[0].message.tool_calls:
             tool_name: str = tool_call.function.name # type: ignore
             if tool_name in tools_by_name:
                 print(f"===Calling tool {tool_name} on turn {turns}===")
                 tool_args = json.loads(tool_call.function.arguments)
                 tool_to_call = tools_by_name[tool_name]
-                # print(f"TOOL TO CALL: {tool_to_call}, ARGS: {tool_args}")
+                print(f"TOOL TO CALL: {tool_to_call}, ARGS: {tool_args}")
                 tool_result = tool_to_call(**tool_args)
-                # print(f"TOOL RESULT: {tool_result}")
                 tool_result_str = str(tool_result)
                 print(f"TOOL RESULT: {str(tool_result)}")
                 if tool_result_str is None:
@@ -129,5 +127,5 @@ async def run_agent(repo: str,input: str) -> FinalAnswer | None:
     return None 
 
 if __name__ == "__main__":
-    answer = asyncio.run(run_agent("bcbio/bcbio-nextgen", "What functions are there for parsing fastq files?"))
+    answer = asyncio.run(run_agent("deepmind/sonnet", "How can I retrieve all trainable TensorFlow variables defined within a specific Sonnet module?"))
     print(f"Answer: {answer}")
