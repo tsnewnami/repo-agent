@@ -20,6 +20,7 @@ def get_conn():
 @dataclass
 class SearchResult:
     repo_name: str
+    func_path: str
     func_name: str
     func_docs: str
 
@@ -51,7 +52,8 @@ def search_repo(
         query = """
         SELECT DISTINCT 
             gc.repository_name, 
-            gc.func_name, 
+            gc.func_path_in_repository, 
+            gc.func_name,
             COALESCE(gc.func_documentation_string, '') as func_docs
         FROM github_code gc
         JOIN github_code_fts fts ON gc.id = fts.rowid
@@ -77,7 +79,7 @@ def search_repo(
         # Convert to SearchResult objects
         search_results = []
         for row in results:
-            repo_name_result, func_name, func_docs = row
+            repo_name_result, func_path, func_name, func_docs = row
             
             # Truncate func_docs to reasonable length
             if len(func_docs) > 200:
@@ -85,6 +87,7 @@ def search_repo(
             
             search_results.append(SearchResult(
                 repo_name=repo_name_result,
+                func_path=func_path,
                 func_name=func_name,
                 func_docs=func_docs
             ))
@@ -102,70 +105,64 @@ def search_repo(
         return []
 
 
-# def read_issue(repo_name: str, issue_id: int) -> Optional[Issue]:
-#     """
-#     Read a specific GitHub issue by repository name and issue number.
+def read_function(repo_name: str, func_path: str, func_name: str) -> Optional[Function]:
+    """
+    Read a specific GitHub function by repository name, function path, and function name.
     
-#     Args:
-#         repo_name: Repository name (e.g., "pytorch/pytorch")
-#         issue_id: Issue number/ID
+    Args:
+        repo_name: Repository name (e.g., "pytorch/pytorch")
+        func_path: Function path in repository
+        func_name: Function name
     
-#     Returns:
-#         Issue object if found, None if not found
-#     """
-#     conn = get_conn()
-#     cursor = conn.cursor()
+    Returns:
+        Function object if found, None if not found
+    """
+    conn = get_conn()
+    cursor = conn.cursor()
     
-#     try:
-#         query = """
-#         SELECT id, repo_name, topic, issue_number, title, body, open, 
-#                created_at, updated_at, url, labels, user, comments
-#         FROM github_issues
-#         WHERE repo_name = ? AND issue_number = ?
-#         """
+    try:
+        query = """
+        SELECT repository_name, func_path_in_repository, func_name, whole_func_string, 
+               language, func_documentation_string
+        FROM github_code
+        WHERE repository_name = ? AND func_path_in_repository = ? AND func_name = ?
+        """
         
-#         logging.info(f"Reading issue: repo_name={repo_name}, issue_id={issue_id}")
-#         logging.debug(f"SQL query: {query}")
-#         logging.debug(f"SQL parameters: [{repo_name}, {issue_id}]")
+        logging.info(f"Reading function: repo_name={repo_name}, func_path={func_path}, func_name={func_name}")
+        logging.debug(f"SQL query: {query}")
+        logging.debug(f"SQL parameters: [{repo_name}, {func_path}, {func_name}]")
         
-#         cursor.execute(query, [repo_name, issue_id])
-#         result: Optional[Tuple] = cursor.fetchone()
+        cursor.execute(query, [repo_name, func_path, func_name])
+        result: Optional[Tuple] = cursor.fetchone()
         
-#         if result is None:
-#             logging.warning(f"No issue found for repo_name={repo_name}, issue_id={issue_id}")
-#             return None
+        if result is None:
+            logging.warning(f"No function found for repo_name={repo_name}, func_path={func_path}, func_name={func_name}")
+            return None
         
-#         logging.info(f"Issue found successfully: {repo_name}#{issue_id}")
-#         logging.debug(f"Raw result: {result}")
+        logging.info(f"Function found successfully: {repo_name}#{func_path}#{func_name}")
+        logging.debug(f"Raw result: {result}")
         
-#         # Destructure database row into named variables (matches SELECT column order)
-#         (db_id, db_repo_name, db_topic, db_issue_number, db_title, db_body, db_open,
-#          db_created_at, db_updated_at, db_url, db_labels, db_user, db_comments) = result
+        # Destructure database row into named variables (matches SELECT column order)
+        (db_repo_name, db_func_path, db_func_name, db_whole_func_string, 
+         db_language, db_func_documentation_string) = result
         
-#         # Convert to Issue object with destructured variables
-#         issue = Issue(
-#             id=db_id,
-#             repo_name=db_repo_name,
-#             topic=db_topic,
-#             issue_number=db_issue_number,
-#             title=db_title,
-#             body=db_body,
-#             open=db_open,
-#             created_at=db_created_at,
-#             updated_at=db_updated_at,
-#             url=db_url,
-#             labels=db_labels,
-#             user=db_user,
-#             comments=db_comments
-#         )
+        # Convert to Function object with destructured variables
+        function = Function(
+            repo_name=db_repo_name,
+            func_path_in_repository=db_func_path,
+            func_name=db_func_name,
+            whole_func_string=db_whole_func_string,
+            language=db_language,
+            func_documentation_string=db_func_documentation_string
+        )
         
-#         logging.info(f"Issue object created successfully for {repo_name}#{issue_id}")
-#         return issue
+        logging.info(f"Function object created successfully for {repo_name}#{func_path}#{func_name}")
+        return function
         
-#     except sqlite3.Error as e:
-#         logging.error(f"Database error while reading issue: {e}")
-#         logging.error("Make sure you've run generate_database() from local_db.py first to create the database and FTS tables.")
-#         return None
+    except sqlite3.Error as e:
+        logging.error(f"Database error while reading function: {e}")
+        logging.error("Make sure you've run generate_database() from local_db.py first to create the database and FTS tables.")
+        return None
 
 
 if __name__ == "__main__":
@@ -175,4 +172,4 @@ if __name__ == "__main__":
         max_results=5
     )
     print(results)
-    # print(read_issue(results[0].repo_name, results[0].issue_number))
+    print(read_function(results[0].repo_name, results[0].func_path, results[0].func_name))

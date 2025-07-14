@@ -7,7 +7,6 @@ class Function(BaseModel):
     func_name: str  # NOT NULL
     whole_func_string: str  # NOT NULL
     language: str  # NOT NULL
-    func_code_string: str  # NOT NULL
     func_documentation_string: str  # NOT NULL
 
 class SyntheticQuery(BaseModel):
