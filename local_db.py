@@ -173,6 +173,11 @@ def insert_dataset(dataset, db_path: str):
                 duplicate_count += 1
                 logging.info(f"Skipping duplicate function: {func_key}")
                 continue
+            func_docs = example.get('func_documentation_string', '')
+            if not func_docs:
+                skipped_count += 1
+                logging.debug(f"Skipping function with no documentation: {func_key}")
+                continue
             processed_funcs.add(func_key)
             try:
                 cursor.execute(
