@@ -15,9 +15,10 @@ from rich import print
 
 @dataclass
 class FunctionSnippet():
-    func_name: str
-    func_documentation_string: str
-    code_string: str
+    name: str
+    documentation_string: str
+    code_tokens: str
+    path: str
 
 def iterate_repo_functions(
     repo_name: str,
@@ -65,7 +66,7 @@ def iterate_repo_functions(
     def _fetch_batch(id_slice: List[int]) -> List[FunctionSnippet]:
         placeholders = ",".join(["?"] * len(id_slice))
         functions_query = f"""
-            SELECT func_name, func_documentation_string, func_code_tokens
+            SELECT func_name, func_documentation_string, func_code_tokens, func_path_in_repository
             FROM github_code
             WHERE id IN ({placeholders})
             ORDER BY id
@@ -75,9 +76,10 @@ def iterate_repo_functions(
         batch: List[FunctionSnippet] = []
         for row in function_rows:
             batch.append(FunctionSnippet(
-                func_name=row["func_name"],
-                func_documentation_string=row["func_documentation_string"],
-                code_string=row["func_code_tokens"],
+                name=row["func_name"],
+                documentation_string=row["func_documentation_string"],
+                code_tokens=row["func_code_tokens"],
+                path=row["func_path_in_repository"],
             ))
         return batch
 
@@ -113,11 +115,63 @@ async def generate_synthetic_qa_pairs_for_repo(repo: str, batch: List[FunctionSn
     
     SYSTEM_PROMPT = dedent(
         f"""
-        You are an assistant that creates realistic question–answer pairs a human might ask about github functions in a repo.
-        For example, how a user might use the functions in the repo to complete a task.
-        Every answer MUST be fully contained in the provided functions. Do NOT hallucinate.
+        You are an assistant that creates realistic question–answer pairs that developers would actually ask about GitHub functions in a repository.
 
-        Do not include functions in the question.
+        ## Core Principles:
+        1. **Realistic & Task-Oriented**: Generate questions that reflect real developer needs - "How do I..." rather than "What does..."
+        2. **Contextually Appropriate**: Use function paths, names, and documentation to understand relationships and generate appropriate question types
+        3. **Fully Grounded**: Every answer MUST be completely answerable from the provided functions. Do NOT hallucinate functionality.
+        4. **Diverse Question Types**: Mix individual function questions with multi-function workflow questions based on what makes sense for the batch
+
+        ## Question Generation Strategy:
+
+        ### Analyze the Batch First:
+        - **File Path Context**: Functions in the same file/directory are likely related and suitable for multi-function questions
+        - **Domain Recognition**: Use paths to understand the domain (auth/, database/, utils/, api/, etc.) and craft domain-appropriate questions
+        - **Function Relationships**: Look for functions that naturally work together (complementary operations, shared parameters, sequential workflows)
+
+        ### Question Types to Generate:
+
+        **Task-Oriented Questions (60-70% of questions):**
+        - "How do I authenticate users in this system?"
+        - "How do I process and validate user input?"
+        - "How do I set up error handling for API calls?"
+
+        **Function Discovery Questions:**
+        - "What should I use to hash passwords securely?"
+        - "Which function handles file uploads?"
+        - "What's available for database connection management?"
+
+        **Usage Pattern Questions (when functions are related):**
+        - "What's the typical workflow for processing requests?"
+        - "How do these validation functions work together?"
+        - "What's the correct sequence for initialization?"
+
+        **Integration & Configuration Questions:**
+        - "How do I configure retry settings for this client?"
+        - "What parameters are required for this database connection?"
+        - "How do I handle errors when this function fails?"
+
+        ### Adaptive Question Generation:
+        - **Same file/directory**: Favor multi-function questions about workflows and integration
+        - **Different domains**: Generate individual function questions focused on specific use cases
+        - **Utility functions**: Focus on practical usage and common scenarios
+        - **Complex functions**: Include error handling and edge cases in questions
+
+        ### Answer Requirements:
+        - Provide concrete, actionable guidance
+        - Include code examples when helpful
+        - Address common pitfalls and best practices
+        - Reference specific function parameters and return values
+        - Explain error conditions and handling
+
+        ## Quality Markers:
+        - Questions should sound like they come from Stack Overflow or developer forums
+        - Answers should be immediately actionable by a developer
+        - Focus on practical implementation over theoretical understanding
+        - Consider different skill levels (beginner, intermediate, advanced)
+
+        **Important**: Do not mention specific function names in questions. Ask about capabilities and tasks instead.
 
         Respond with a JSON object with the following structure:
         {Response.model_json_schema()}
@@ -131,7 +185,7 @@ async def generate_synthetic_qa_pairs_for_repo(repo: str, batch: List[FunctionSn
         {batch}
         ---
 
-        Generate 8 diverse question–answer pairs for the batch of issues.
+        Generate 8 diverse question–answer pairs for the batch of functions.
         """
     ).strip()
     
@@ -151,7 +205,7 @@ async def generate_synthetic_qa_pairs_for_repo(repo: str, batch: List[FunctionSn
 
     return qa_pairs
 
-def filter_repos(db_path: str, split_type: Literal["train", "test"], min_count: int = 10):
+def filter_repos(db_path: str, split_type: Literal["train", "test"], min_count: int = 50):
     """
     Return a nested dictionary mapping each repository_name to a dict of split_name to count,
     filtered by minimum count threshold.
@@ -206,5 +260,8 @@ async def generate_synthetic_data_for_repo(repo: str, batch_size: int = 20) -> L
 
 if __name__ == "__main__":
     import asyncio
-    # asyncio.run(generate_synthetic_data_for_repo("deepmind/sonnet")) 
-    print(filter_repos(DB_PATH, "test", 100))
+    asyncio.run(generate_synthetic_data_for_repo("deepmind/sonnet")) 
+    # for batch in iterate_repo_functions("deepmind/sonnet", batch_size=10):
+    #     print(batch)
+    #     break
+    # print(filter_repos(DB_PATH, "test", 100))
