@@ -2,35 +2,39 @@ import asyncio
 import json
 import logging
 import litellm
-import art 
 
 from textwrap import dedent
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from rich import print
 from litellm import acompletion
-from tools import search_issues, read_issue
+from tools import read_repo_function, search_repo
+from data_types import Function
 from langchain_core.utils.function_calling import convert_to_openai_function
 from litellm.caching.caching import LiteLLMCacheType, Cache
-# from art.utils.litellm import convert_litellm_choice_to_openai
 
 load_dotenv()
 
 litellm.cache = Cache(type=LiteLLMCacheType.DISK)
 
+# # Configure logging
+# logging.basicConfig(
+#     level=logging.INFO,
+#     format='%(asctime)s - %(levelname)s - %(message)s',
+#     datefmt='%Y-%m-%d %H:%M:%S'
+# )
+
 class FinalAnswer(BaseModel):
     answer: str
-    issues: list[str]
+    functions: list[str]
     
 MAX_TURNS = 10
 
 async def run_agent(repo: str,input: str) -> FinalAnswer | None:
     SYSTEM_PROMPT = dedent(f"""
-        You are a github repo issue seacher. You are given a repo and a question.
-        You will use the tools provided to search the repo for issues that match the question.
+        You are a github repo searcher. You will be given a question about the code within the repo.
+        You will use the tools provided to search the repo and read functions to answer the question.
         You may operate for up to {MAX_TURNS}, so if your first search doesn't find the answer, you can use different keywords.
-
-        The repo to search is {repo}.
     """)
 
     messages = [
@@ -38,29 +42,35 @@ async def run_agent(repo: str,input: str) -> FinalAnswer | None:
         {"role": "user", "content": input},
     ]
     
-    def search_repo(keywords: list[str]) -> list[dict]:
+    def search_functions(keywords: list[str]) -> list[dict]:
         """
-            Search the repo for issues that match the keywords.
-            Return the issues in a list of dictionaries so the LLM can use them.
+            Search the repo for functions that match the keywords.
+            Return the functions in a list of dictionaries so the LLM can use them.
         """
-        return search_issues(repo, keywords)
+        return search_repo(repo, keywords)
 
-    def return_answer(answer: str, issues: list[str]) -> FinalAnswer:
+    def return_answer(answer: str, functions: list[str]) -> FinalAnswer:
         """
-            Return the answer and the Issue #'s used to answer the question.
+            Return the answer and the functions used to answer the question.
         """
-        return FinalAnswer(answer=answer, issues=issues)
+        return FinalAnswer(answer=answer, functions=functions)
+
+    def read_function(func_path: str, func_name: str) -> Function:
+        """
+            Read a function from the repo.
+        """
+        return read_repo_function(repo, func_path, func_name)
     
-    tools = [search_repo, read_issue, return_answer]
+    tools = [search_functions, read_function, return_answer]
     tools_by_name = {tool.__name__: tool for tool in tools}
     tools = [
         {
             "type": "function",
-            "function": convert_to_openai_function(search_repo)
+            "function": convert_to_openai_function(search_functions)
         },
         {
             "type": "function",
-            "function": convert_to_openai_function(read_issue)
+            "function": convert_to_openai_function(read_function)
         },
         {
             "type": "function",
@@ -88,9 +98,9 @@ async def run_agent(repo: str,input: str) -> FinalAnswer | None:
             response_message
         )
         
-        # Terminate early. We always want tool calls.
+        # Terminate early. We always want tool calls. This indicates an issue.
         if response_message.tool_calls is None:
-            print("Response message has no tool calls")
+            logging.error(f"Response message has no tool calls for turn {turns}")
             return None
         
         # print(f"RESPONSE: {response}")
@@ -119,5 +129,5 @@ async def run_agent(repo: str,input: str) -> FinalAnswer | None:
     return None 
 
 if __name__ == "__main__":
-    answer = asyncio.run(run_agent("pytorch/pytorch", "Tell me the scenarios where there were memory leaks"))
+    answer = asyncio.run(run_agent("bcbio/bcbio-nextgen", "What functions are there for parsing fastq files?"))
     print(f"Answer: {answer}")

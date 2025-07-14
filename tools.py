@@ -28,7 +28,7 @@ class SearchResult:
 def search_repo(
     repo_name: str,
     keywords: List[str],
-    max_results: int = 10
+    max_results: int = 15
 ) -> Optional[List[SearchResult]]:
     """
     Search GitHub code functions using full-text search and filtering parameters.
@@ -36,7 +36,7 @@ def search_repo(
     Args:
         repo_name: Repository name to search within
         keywords: List of keywords to search for in function name, code, and documentation
-        max_results: Maximum number of results to return (default: 10)
+        max_results: Maximum number of results to return
     
     Returns:
         List of SearchResult objects containing matching functions, or None if no results found
@@ -105,7 +105,7 @@ def search_repo(
         return []
 
 
-def read_function(repo_name: str, func_path: str, func_name: str) -> Optional[Function]:
+def read_repo_function(repo_name: str, func_path: str, func_name: str) -> Optional[Function]:
     """
     Read a specific GitHub function by repository name, function path, and function name.
     
