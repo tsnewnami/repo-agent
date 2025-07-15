@@ -1,8 +1,10 @@
 import logging
 import sqlite3
+import json
 from dataclasses import dataclass
 from textwrap import dedent
 from typing import Iterator, List, Dict, Any, Literal
+from pathlib import Path
 
 from diskcache import Cache
 import litellm
@@ -12,6 +14,7 @@ from local_db import DB_PATH
 from data_types import Function
 from pydantic import BaseModel, Field
 from rich import print
+from tqdm import tqdm
 
 @dataclass
 class FunctionSnippet():
@@ -205,16 +208,16 @@ async def generate_synthetic_qa_pairs_for_repo(repo: str, batch: List[FunctionSn
 
     return qa_pairs
 
-def filter_repos(db_path: str, split_type: Literal["train", "test"], min_count: int = 50):
+def filter_repos(db_path: str, split_type: Literal["train", "test"], min_func_count: int = 50) -> List[str]:
     """
-    Return a nested dictionary mapping each repository_name to a dict of split_name to count,
-    filtered by minimum count threshold.
+    Return a list of repository names filtered by minimum function count threshold.
+    
     Args:
         db_path: Path to the SQLite database
         split_type: Either "train" to get train split data, or "test" to get test and valid split data
-        min_count: Minimum number of functions required for a repository to be included
+        min_func_count: Minimum number of functions required for a repository to be included
     Returns:
-        dict: {repository_name: {split_name: count}} where count >= min_count
+        List[str]: List of repository names where function count >= min_func_count
     """
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -225,43 +228,135 @@ def filter_repos(db_path: str, split_type: Literal["train", "test"], min_count: 
         split_filter = "WHERE split_name IN ('test', 'valid')"
     
     cursor.execute(f"""
-        SELECT repository_name, split_name, COUNT(*)
+        SELECT repository_name
         FROM github_code
         {split_filter}
-        GROUP BY repository_name, split_name
+        GROUP BY repository_name
         HAVING COUNT(*) >= ?
-    """, (min_count,))
+    """, (min_func_count,))
     
-    result = {}
-    for repo, split, count in cursor.fetchall():
-        if repo not in result:
-            result[repo] = {}
-        result[repo][split] = count
+    repos = [row[0] for row in cursor.fetchall()]
     conn.close()
-    logging.info(f"Repository counts by split ({split_type}): {result}")
-    return result
+    
+    logging.info(f"Found {len(repos)} repositories for {split_type} split: {repos}")
+    return repos
 
     
-async def generate_synthetic_data_for_repo(repo: str, batch_size: int = 20) -> List[Response]:
+async def generate_synthetic_data_for_repo(repo: str, batch_size: int = 20) -> List[GeneratedSyntheticQuery]:
     """
     Generate synthetic data for a given repository.
     """
+    all_qa_pairs = []
+    # REMOVE
+    temp_count = 0
     for batch in iterate_repo_functions(repo, batch_size=batch_size):
         qa_pairs = await generate_synthetic_qa_pairs_for_repo(repo, batch)
-        for qa_pair in qa_pairs:
-            print(qa_pair.question)
-            print(qa_pair.answer)
-            print(qa_pair.repo)
-            print(qa_pair.functions)
-            print(qa_pair.how_realistic)
-            print("-" * 100)
+        all_qa_pairs.extend(qa_pairs)
+        temp_count += 1
+        if temp_count > 3:
+            break
         
+        # Log progress
+        print(f"Generated {len(qa_pairs)} QA pairs for {repo} (batch of {len(batch)} functions)")
     
+    return all_qa_pairs
+
+async def generate_and_write_synthetic_data(
+    output_dir: str,
+    split_type: Literal["train", "test"],
+    min_func_count: int = 50,
+    batch_size: int = 20,
+) -> None:
+    """
+    Generate synthetic data for repositories in the specified split and write to JSONL files.
+    
+    Args:
+        split_type: Either "train" or "test" to determine which repositories to process
+        min_count: Minimum number of functions required for a repository to be included
+        batch_size: Number of functions to process in each batch
+        output_dir: Directory to write the JSONL files to
+    """
+    # Create output directory if it doesn't exist
+    output_path = Path(output_dir)
+    output_path.mkdir(exist_ok=True)
+    
+    # Get repositories for this split type
+    # repos = filter_repos(DB_PATH, split_type, min_func_count)
+
+    repos = ["deepmind/sonnet"]
+    
+    if not repos:
+        print(f"No repositories found for split type: {split_type}")
+        return
+    
+    # Process each repository
+    total_repos = len(repos)
+    repo_progress = tqdm(repos, 
+                        desc=f"Processing {split_type} repositories", 
+                        total=total_repos,
+                        unit="repo")
+    
+    total_qa_pairs = 0
+    processed_repos = 0
+    
+    for repo_name in repo_progress:
+        repo_progress.set_postfix_str(f"Current: {repo_name}")
+        
+        try:
+            # Generate synthetic data for this repository
+            qa_pairs = await generate_synthetic_data_for_repo(repo_name, batch_size)
+            
+            if not qa_pairs:
+                repo_progress.write(f"No QA pairs generated for {repo_name}")
+                continue
+            
+            output_file = output_path / f"{split_type}.jsonl"
+            
+            with open(output_file, 'a', encoding='utf-8') as f:
+                for qa_pair in qa_pairs:
+                    # Create JSONL entry with split information
+                    jsonl_entry = {
+                        "question": qa_pair.question,
+                        "answer": qa_pair.answer,
+                        "repo": qa_pair.repo,
+                        "functions": qa_pair.functions,
+                        "how_realistic": qa_pair.how_realistic,
+                        "split": split_type
+                    }
+                    f.write(json.dumps(jsonl_entry) + '\n')
+            
+            repo_progress.write(f"Wrote {len(qa_pairs)} QA pairs to {output_file}")
+            
+            total_qa_pairs += len(qa_pairs)
+            processed_repos += 1
+            
+        except Exception as e:
+            repo_progress.write(f"Error processing repository {repo_name}: {e}")
+            continue
+    
+    repo_progress.close()
+    print(f"\nCompleted {split_type} split:")
+    print(f"  - Processed {processed_repos}/{total_repos} repositories")
+    print(f"  - Generated {total_qa_pairs} total QA pairs")
+
+async def main():
+    output_dir = "synthetic_data"
+    """
+    Main function to generate synthetic data for both train and test splits.
+    """
+    print("Starting synthetic data generation...")
+    
+    # Generate data for train split
+    print("\n=== Generating data for TRAIN split ===")
+    await generate_and_write_synthetic_data(output_dir, "train", min_func_count=50, batch_size=20)
+    
+    # # Generate data for test split  
+    # print("\n=== Generating data for TEST split ===")
+    # await generate_and_write_synthetic_data(output_dir, "test", min_func_count=50, batch_size=20)
+    
+    print("\nSynthetic data generation complete!")
+    print("Check the 'synthetic_data' directory for generated JSONL files.")
 
 if __name__ == "__main__":
     import asyncio
-    asyncio.run(generate_synthetic_data_for_repo("deepmind/sonnet")) 
-    # for batch in iterate_repo_functions("deepmind/sonnet", batch_size=10):
-    #     print(batch)
-    #     break
-    # print(filter_repos(DB_PATH, "test", 100))
+    asyncio.run(main()) 

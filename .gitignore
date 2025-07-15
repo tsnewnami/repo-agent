@@ -14,4 +14,4 @@ wheels/
 github_code.db
 .cache
 .litellm_cache
-/data
+/synthetic_data
