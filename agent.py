@@ -24,8 +24,13 @@ litellm.cache = Cache(type=LiteLLMCacheType.DISK)
 #     datefmt='%Y-%m-%d %H:%M:%S'
 # )
 
+class StructuredAnswer(BaseModel):
+    explanation: str
+    code_snippet: str
+    code_explanation: str
+    
 class FinalAnswer(BaseModel):
-    answer: str
+    structured_answer: StructuredAnswer
     functions: list[str]
     
 MAX_TURNS = 10
@@ -49,17 +54,17 @@ async def run_agent(repo: str,input: str) -> FinalAnswer | None:
         """
         return search_repo(repo, keywords)
 
-    def return_answer(answer: str, functions: list[str]) -> FinalAnswer:
-        """
-            Return the answer and the functions used to answer the question.
-        """
-        return FinalAnswer(answer=answer, functions=functions)
-
     def read_function(func_path: str, func_name: str) -> Function:
         """
             Read a function from the repo.
         """
         return read_repo_function(repo, func_path, func_name)
+
+    def return_answer(explanation: str, code_snippet: str, code_explanation: str, functions: list[str]) -> FinalAnswer:
+        """
+            Return the answer and the functions used to answer the question.
+        """
+        return FinalAnswer(structured_answer=StructuredAnswer(explanation=explanation, code_snippet=code_snippet, code_explanation=code_explanation), functions=functions)
     
     tools = [search_functions, read_function, return_answer]
     tools_by_name = {tool.__name__: tool for tool in tools}
@@ -102,11 +107,10 @@ async def run_agent(repo: str,input: str) -> FinalAnswer | None:
             logging.error(f"Response message has no tool calls for turn {turns}")
             return None
         
-        print(f"RESPONSE: {response}")
         for tool_call in response.choices[0].message.tool_calls:
             tool_name: str = tool_call.function.name # type: ignore
             if tool_name in tools_by_name:
-                print(f"===Calling tool {tool_name} on turn {turns}===")
+                print(f"=================Calling tool {tool_name} on turn {turns}================================================")
                 tool_args = json.loads(tool_call.function.arguments)
                 tool_to_call = tools_by_name[tool_name]
                 print(f"TOOL TO CALL: {tool_to_call}, ARGS: {tool_args}")
@@ -127,5 +131,5 @@ async def run_agent(repo: str,input: str) -> FinalAnswer | None:
     return None 
 
 if __name__ == "__main__":
-    answer = asyncio.run(run_agent("deepmind/sonnet", "How can I retrieve all trainable TensorFlow variables defined within a specific Sonnet module?"))
+    answer = asyncio.run(run_agent("deepmind/sonnet", "How can I visualize or debug one-hot encoded tensor sequences by converting them back to human-readable form?"))
     print(f"Answer: {answer}")

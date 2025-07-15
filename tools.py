@@ -46,56 +46,36 @@ def search_repo(
     cursor = conn.cursor()
     
     try:
-        # Build FTS query from keywords
-        fts_query = " AND ".join(keywords) if keywords else "*"
+        # Collect all search results from different methods
+        all_results = []
         
-        # Base query using FTS for keyword search
-        query = """
-        SELECT DISTINCT 
-            gc.repository_name, 
-            gc.func_path_in_repository, 
-            gc.func_name,
-            COALESCE(gc.func_documentation_string, '') as func_docs,
-            COALESCE(gc.func_code_tokens, '') as func_code_tokens
-        FROM github_code gc
-        JOIN github_code_fts fts ON gc.id = fts.rowid
-        WHERE github_code_fts MATCH ?
-        AND gc.repository_name = ?
-        """
+        # Try FTS with original keywords
+        fts_results = _search_with_fts(cursor, repo_name, keywords, max_results)
+        all_results.extend(fts_results)
         
-        params = [fts_query, repo_name]
+        # Try enhanced search with camelCase variations
+        for keyword in keywords:
+            enhanced_keywords = _generate_camelcase_variations([keyword])
+            for enhanced_keyword in enhanced_keywords:
+                enhanced_results = _search_with_fts(cursor, repo_name, [enhanced_keyword], max_results)
+                all_results.extend(enhanced_results)
         
-        # Order by relevance (FTS5 returns results in relevance order by default) and limit results
-        query += " LIMIT ?"
-        params.append(max_results)
+        # Try LIKE fallback for substring matching
+        like_results = _search_with_like(cursor, repo_name, keywords, max_results)
+        all_results.extend(like_results)
         
-        logging.info(f"Executing search query: repo_name={repo_name}, keywords={keywords}, max_results={max_results}")
-        logging.debug(f"SQL query: {query}")
-        logging.debug(f"SQL parameters: {params}")
-        
-        cursor.execute(query, params)
-        results = cursor.fetchall()
-        
-        logging.info(f"Search query executed successfully. Returned {len(results)} rows")
-        
-        # Convert to SearchResult objects
+        # Remove duplicates while preserving order
+        seen = set()
         search_results = []
-        for row in results:
-            repo_name_result, func_path, func_name, func_docs, func_code_tokens = row
-            
-            # Truncate func_code_tokens to reasonable length
-            tokens = func_code_tokens.split() if func_code_tokens else []
-            func_snippet = ' '.join(tokens[:50])
-            if len(tokens) > 50:
-                func_snippet += "..."
-            
-            search_results.append(SearchResult(
-                repo_name=repo_name_result,
-                func_path=func_path,
-                func_name=func_name,
-                func_docs=func_docs,
-                func_snippet=func_snippet
-            ))
+        for result in all_results:
+            # Create a unique key for each result
+            key = (result.repo_name, result.func_path, result.func_name)
+            if key not in seen:
+                seen.add(key)
+                search_results.append(result)
+        
+        # Limit to max_results
+        search_results = search_results[:max_results]
         
         if not search_results:
             logging.warning(f"No results found for search: repo_name={repo_name}, keywords={keywords}")
@@ -108,6 +88,143 @@ def search_repo(
         logging.error(f"Database error: {e}")
         logging.error("Make sure you've run generate_database() from local_db.py first to create the database and FTS tables.")
         return []
+
+
+def _generate_camelcase_variations(keywords: List[str]) -> List[str]:
+    """Generate camelCase variations of keywords to improve search matching."""
+    variations = []
+    for keyword in keywords:
+        # Original keyword
+        variations.append(keyword)
+        # Capitalized version
+        variations.append(keyword.capitalize())
+        # Common camelCase prefixes
+        variations.append(f"Combine{keyword.capitalize()}")
+        variations.append(f"Mix{keyword.capitalize()}")
+        variations.append(f"Base{keyword.capitalize()}")
+        # Prefix search for FTS (only wildcards at the end work in FTS5)
+        variations.append(f"{keyword}*")
+        variations.append(f"{keyword.capitalize()}*")
+    return list(set(variations))  # Remove duplicates
+
+
+def _search_with_fts(cursor, repo_name: str, keywords: List[str], max_results: int) -> List[SearchResult]:
+    """Search using FTS5 full-text search."""
+    # Build FTS query from keywords, escaping special characters
+    escaped_keywords = []
+    for keyword in keywords:
+        # Escape FTS5 special characters by wrapping in double quotes
+        if any(char in keyword for char in ['-', ' ', '"', '*']):
+            # Escape any existing quotes and wrap in quotes
+            escaped_keyword = '"' + keyword.replace('"', '""') + '"'
+        else:
+            escaped_keyword = keyword
+        escaped_keywords.append(escaped_keyword)
+    
+    fts_query = " AND ".join(escaped_keywords) if escaped_keywords else "*"
+    
+    # Base query using FTS for keyword search
+    query = """
+    SELECT DISTINCT 
+        gc.repository_name, 
+        gc.func_path_in_repository, 
+        gc.func_name,
+        COALESCE(gc.func_documentation_string, '') as func_docs,
+        COALESCE(gc.func_code_tokens, '') as func_code_tokens
+    FROM github_code gc
+    JOIN github_code_fts fts ON gc.id = fts.rowid
+    WHERE github_code_fts MATCH ?
+    AND gc.repository_name = ?
+    LIMIT ?
+    """
+    
+    params = [fts_query, repo_name, max_results]
+    
+    logging.info(f"FTS search: repo_name={repo_name}, keywords={keywords}")
+    logging.debug(f"FTS query: {query}")
+    logging.debug(f"FTS parameters: {params}")
+    
+    try:
+        cursor.execute(query, params)
+        results = cursor.fetchall()
+        
+        logging.info(f"FTS search returned {len(results)} results")
+        
+        return _convert_to_search_results(results)
+    except sqlite3.OperationalError as e:
+        logging.warning(f"FTS search failed for keywords {keywords}: {e}")
+        return []
+
+
+def _search_with_like(cursor, repo_name: str, keywords: List[str], max_results: int) -> List[SearchResult]:
+    """Fallback search using LIKE queries for substring matching."""
+    if not keywords:
+        return []
+    
+    # Build LIKE conditions for substring matching
+    like_conditions = []
+    params = []
+    
+    for keyword in keywords:
+        like_conditions.append("""
+            (gc.func_name LIKE ? OR 
+             gc.func_documentation_string LIKE ? OR 
+             gc.func_code_tokens LIKE ?)
+        """)
+        like_pattern = f"%{keyword}%"
+        params.extend([like_pattern, like_pattern, like_pattern])
+    
+    # Combine conditions with AND
+    where_clause = " AND ".join(like_conditions)
+    
+    query = f"""
+    SELECT DISTINCT 
+        gc.repository_name, 
+        gc.func_path_in_repository, 
+        gc.func_name,
+        COALESCE(gc.func_documentation_string, '') as func_docs,
+        COALESCE(gc.func_code_tokens, '') as func_code_tokens
+    FROM github_code gc
+    WHERE {where_clause}
+    AND gc.repository_name = ?
+    LIMIT ?
+    """
+    
+    params.extend([repo_name, max_results])
+    
+    logging.info(f"LIKE search: repo_name={repo_name}, keywords={keywords}")
+    logging.debug(f"LIKE query: {query}")
+    logging.debug(f"LIKE parameters: {params}")
+    
+    cursor.execute(query, params)
+    results = cursor.fetchall()
+    
+    logging.info(f"LIKE search returned {len(results)} results")
+    
+    return _convert_to_search_results(results)
+
+
+def _convert_to_search_results(results) -> List[SearchResult]:
+    """Convert database results to SearchResult objects."""
+    search_results = []
+    for row in results:
+        repo_name_result, func_path, func_name, func_docs, func_code_tokens = row
+        
+        # Truncate func_code_tokens to reasonable length
+        tokens = func_code_tokens.split() if func_code_tokens else []
+        func_snippet = ' '.join(tokens[:50])
+        if len(tokens) > 50:
+            func_snippet += "..."
+        
+        search_results.append(SearchResult(
+            repo_name=repo_name_result,
+            func_path=func_path,
+            func_name=func_name,
+            func_docs=func_docs,
+            func_snippet=func_snippet
+        ))
+    
+    return search_results
 
 
 def read_repo_function(repo_name: str, func_path: str, func_name: str) -> Optional[Function]:
@@ -168,8 +285,8 @@ def read_repo_function(repo_name: str, func_path: str, func_name: str) -> Option
 
 if __name__ == "__main__":
     results = search_repo(
-        repo_name="bcbio/bcbio-nextgen",
-        keywords=["fastq"],
+        repo_name="deepmind/sonnet",
+        keywords=["curriculum"],
         max_results=5
     )
     print(results)
