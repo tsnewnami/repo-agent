@@ -116,7 +116,7 @@ async def run_agent(repo: str,input: str) -> FinalAnswer | None:
                 print(f"TOOL TO CALL: {tool_to_call}, ARGS: {tool_args}")
                 tool_result = tool_to_call(**tool_args)
                 tool_result_str = str(tool_result)
-                print(f"TOOL RESULT: {str(tool_result)}")
+                # print(f"TOOL RESULT: {str(tool_result)}")
                 if tool_result_str is None:
                     print(f"TOOL RESULT IS NONE")
                 messages.append(

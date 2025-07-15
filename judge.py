@@ -1,6 +1,6 @@
 from textwrap import dedent
 from litellm import acompletion
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import dotenv
 from rich import print
 
@@ -8,13 +8,19 @@ dotenv.load_dotenv()
 
 class JudgeAnswer(BaseModel):
     reasoning: str # Reasoning why answer is correct
-    is_correct: bool # Whether the answer is correct
+    is_correct: bool = Field(description="Whether the answer is correct") # Whether the answer is correct
 
 async def judge_answer(question: str, ref_answer: str, answer: str) -> JudgeAnswer:
     SYSTEM_PROMPT = dedent(f"""
         You are a judge that will be given a question, a reference answer, and a model answer.
         You will need to judge whether the model answer is correct or not.
         You will need to provide a reasoning for your answer.
+        
+        Respond with a JSON object in this format:
+        {{
+            "reasoning": "Your reasoning here",
+            "is_correct": true/false
+        }}
     """)
     
     messages = [
@@ -22,19 +28,43 @@ async def judge_answer(question: str, ref_answer: str, answer: str) -> JudgeAnsw
         {"role": "user", "content": 
             f"Question: {question} \n"
             f"Reference Answer: {ref_answer} \n"
-            f"Anser: {answer}"
+            f"Answer: {answer}"
         }
     ]
     
-    resp = await acompletion(
-        model="gpt-4.1",
-        messages=messages,
-        cache=True,
-        response_format=JudgeAnswer
-    )
+    print("About to call acompletion...")
     
-    content = resp["choices"][0]["message"]["content"]  # type: ignore
-    judge_answer = JudgeAnswer.model_validate_json(content)
+    try:
+        resp = await acompletion(
+            model="gpt-4.1",
+            messages=messages
+        )
+        print("acompletion call completed successfully")
+    except Exception as e:
+        print(f"Error in acompletion call: {e}")
+        print(f"Error type: {type(e)}")
+        return JudgeAnswer(reasoning=f"Error in acompletion: {e}", is_correct=False)
+    
+    # Debug the response
+    print(f"Response type: {type(resp)}")
+    
+    try:
+        content = resp["choices"][0]["message"]["content"]  # type: ignore
+        print(f"Content: {content}")
+        
+        # Try to parse JSON from the content
+        import json
+        json_data = json.loads(content)
+        
+        judge_answer = JudgeAnswer(
+            reasoning=json_data.get("reasoning", "No reasoning provided"),
+            is_correct=json_data.get("is_correct", False)
+        )
+        
+    except Exception as e:
+        print(f"Error parsing response: {e}")
+        print(f"Content: {content if 'content' in locals() else 'No content'}")
+        return JudgeAnswer(reasoning="Error parsing response", is_correct=False)
     
     return judge_answer
     
