@@ -45,6 +45,15 @@ def iterate_repo_functions(
         ``local_db``.
     """
     
+    def _trim_string(text: str, max_length: int) -> str:
+        """Trim a string if it exceeds max_length while preserving readability."""
+        if not text or len(text) <= max_length:
+            return text
+        # Keep the first 2/3 and last 1/3 of the allowed length
+        first_part = int(max_length * 2/3)
+        last_part = max_length - first_part - 5  # 5 chars for ellipsis and spacing
+        return f"{text[:first_part]} ... {text[-last_part:]}"
+    
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row  # access columns by name
 
@@ -77,10 +86,14 @@ def iterate_repo_functions(
 
         batch: List[FunctionSnippet] = []
         for row in function_rows:
+            # Trim long strings to avoid context window issues
+            doc_string = _trim_string(row["func_documentation_string"], 500)
+            code_tokens = _trim_string(row["func_code_tokens"], 500)
+            
             batch.append(FunctionSnippet(
                 name=row["func_name"],
-                documentation_string=row["func_documentation_string"],
-                code_tokens=row["func_code_tokens"],
+                documentation_string=doc_string,
+                code_tokens=code_tokens,
                 path=row["func_path_in_repository"],
             ))
         return batch
@@ -116,68 +129,28 @@ async def generate_synthetic_qa_pairs_for_repo(repo: str, batch: List[FunctionSn
     """
     
     SYSTEM_PROMPT = dedent(
-        f"""
-        You are an assistant that creates realistic question–answer pairs that developers would actually ask about GitHub functions in a repository.
+    f"""
+        We are training a code assistant that helps developers understand and use functions in a repository. The user will ask questions about code functionality, and the assistant will find relevant functions and provide actionable answers.
 
-        ## Core Principles:
-        1. **Realistic & Task-Oriented**: Generate questions that reflect real developer needs - "How do I..." rather than "What does..."
-        2. **Contextually Appropriate**: Use function paths, names, and documentation to understand relationships and generate appropriate question types
-        3. **Fully Grounded**: Every answer MUST be completely answerable from the provided functions. Do NOT hallucinate functionality.
-        4. **Diverse Question Types**: Mix individual function questions with multi-function workflow questions based on what makes sense for the batch
+        Your job is to generate synthetic training data for the assistant. You will be passed a batch of functions from the repository, and you need to generate plausible questions that a developer might ask, whose answers are all contained in the provided functions. The questions should be practical and actionable, with concrete answers present in the function code and documentation.
 
-        ## Question Generation Strategy:
+        For each question, you should return the correct answer as well as the function names that contain the answer. Note that some batches of functions might not be good candidates for generating training data. In that case you can return an empty list.
 
-        ### Analyze the Batch First:
-        - **File Path Context**: Functions in the same file/directory are likely related and suitable for multi-function questions
-        - **Domain Recognition**: Use paths to understand the domain (auth/, database/, utils/, api/, etc.) and craft domain-appropriate questions
-        - **Function Relationships**: Look for functions that naturally work together (complementary operations, shared parameters, sequential workflows)
+        - Questions should be from a developer's perspective working with this codebase. Eg. 'How do I validate user input?' or 'What's the best way to handle authentication errors?'
+        - Mix simple questions (answerable from 1-2 functions) with complex questions (requiring 3+ functions) to train adaptive retrieval
+        - Focus on practical implementation questions that developers actually face
+        - Avoid mentioning specific function names in questions - ask about capabilities instead
+        - Return only a JSON list of objects. Each object should have the following fields:
+            - question: string, (The question a developer might ask)
+            - answer: string, (The actionable answer with code guidance)
+            - function_names: string[], (The function names that contain the answer)
+            - complexity_level: string, (Either "simple", "medium", or "complex" based on retrieval needs)
+            - how_realistic: float, (How likely a developer would actually ask this, between 0 and 1)
 
-        ### Question Types to Generate:
+        Generate questions that train the agent to use appropriate retrieval strategies while remaining practically useful to developers.
 
-        **Task-Oriented Questions (60-70% of questions):**
-        - "How do I authenticate users in this system?"
-        - "How do I process and validate user input?"
-        - "How do I set up error handling for API calls?"
-
-        **Function Discovery Questions:**
-        - "What should I use to hash passwords securely?"
-        - "Which function handles file uploads?"
-        - "What's available for database connection management?"
-
-        **Usage Pattern Questions (when functions are related):**
-        - "What's the typical workflow for processing requests?"
-        - "How do these validation functions work together?"
-        - "What's the correct sequence for initialization?"
-
-        **Integration & Configuration Questions:**
-        - "How do I configure retry settings for this client?"
-        - "What parameters are required for this database connection?"
-        - "How do I handle errors when this function fails?"
-
-        ### Adaptive Question Generation:
-        - **Same file/directory**: Favor multi-function questions about workflows and integration
-        - **Different domains**: Generate individual function questions focused on specific use cases
-        - **Utility functions**: Focus on practical usage and common scenarios
-        - **Complex functions**: Include error handling and edge cases in questions
-
-        ### Answer Requirements:
-        - Provide concrete, actionable guidance
-        - Include code examples when helpful
-        - Address common pitfalls and best practices
-        - Reference specific function parameters and return values
-        - Explain error conditions and handling
-
-        ## Quality Markers:
-        - Questions should sound like they come from Stack Overflow or developer forums
-        - Answers should be immediately actionable by a developer
-        - Focus on practical implementation over theoretical understanding
-        - Consider different skill levels (beginner, intermediate, advanced)
-
-        **Important**: Do not mention specific function names in questions. Ask about capabilities and tasks instead.
-
-        Respond with a JSON object with the following structure:
         {Response.model_json_schema()}
-        """
+    """
     ).strip()
 
     user_query = dedent(
@@ -187,7 +160,7 @@ async def generate_synthetic_qa_pairs_for_repo(repo: str, batch: List[FunctionSn
         {batch}
         ---
 
-        Generate 8 diverse question–answer pairs for the batch of functions.
+        Generate 4 diverse question–answer pairs for the batch of functions.
         """
     ).strip()
     
@@ -282,7 +255,7 @@ async def generate_and_write_synthetic_data(
     # Get repositories for this split type
     # repos = filter_repos(DB_PATH, split_type, min_func_count)
 
-    repos = ["deepmind/sonnet"]
+    repos = ["deepmind/sonnet", "angr/angr"]
     
     if not repos:
         print(f"No repositories found for split type: {split_type}")

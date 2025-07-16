@@ -79,6 +79,6 @@ if __name__ == "__main__":
     # Test with train data
     train_file = "synthetic_data/train.jsonl"
     if Path(train_file).exists():
-        asyncio.run(test_flow(train_file, max_items=5))
+        asyncio.run(test_flow(train_file, max_items=20))
     else:
         print(f"File {train_file} doesn't exist")
