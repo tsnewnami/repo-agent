@@ -11,7 +11,6 @@ import litellm
 from litellm import acompletion
 from litellm.caching.caching import LiteLLMCacheType, Cache
 from local_db import DB_PATH
-from data_types import Function
 from pydantic import BaseModel, Field
 from rich import print
 from tqdm import tqdm
@@ -26,7 +25,7 @@ class FunctionSnippet():
 def iterate_repo_functions(
     repo_name: str,
     *,
-    batch_size: int = 20,
+    batch_size: int,
     db_path: str = DB_PATH,
 ) -> Iterator[List[FunctionSnippet]]:
     """Yield batches of functions for the given repository.
@@ -193,7 +192,7 @@ async def generate_synthetic_qa_pairs_for_repo(repo: str, batch: List[FunctionSn
     ).strip()
     
     resp = await acompletion(
-    model="gpt-4.1",
+        model="gpt-4.1",
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_query},
@@ -242,7 +241,7 @@ def filter_repos(db_path: str, split_type: Literal["train", "test"], min_func_co
     return repos
 
     
-async def generate_synthetic_data_for_repo(repo: str, batch_size: int = 20) -> List[GeneratedSyntheticQuery]:
+async def generate_synthetic_data_for_repo(repo: str, batch_size: int) -> List[GeneratedSyntheticQuery]:
     """
     Generate synthetic data for a given repository.
     """
@@ -265,7 +264,7 @@ async def generate_and_write_synthetic_data(
     output_dir: str,
     split_type: Literal["train", "test"],
     min_func_count: int = 50,
-    batch_size: int = 20,
+    batch_size: int = 50,
 ) -> None:
     """
     Generate synthetic data for repositories in the specified split and write to JSONL files.

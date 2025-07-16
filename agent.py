@@ -88,7 +88,7 @@ async def run_agent(repo: str,input: str) -> FinalAnswer | None:
     while turns < MAX_TURNS:
         logging.info(f"Turn {turns + 1}:")
         response = await acompletion(        
-            model="gpt-4.1",
+            model="openrouter/qwen/qwen3-14b",
             messages=messages,
             tools=tools,
             caching=True,
