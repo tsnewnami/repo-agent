@@ -3,6 +3,7 @@ import sqlite3
 import json
 from dataclasses import dataclass
 from textwrap import dedent
+import time
 from typing import Iterator, List, Dict, Any, Literal
 from pathlib import Path
 
@@ -144,11 +145,9 @@ async def generate_synthetic_qa_pairs_for_repo(repo: str, batch: List[FunctionSn
             - question: string, (The question a developer might ask)
             - answer: string, (The actionable answer with code guidance)
             - function_names: string[], (The function names that contain the answer)
-            - complexity_level: string, (Either "simple", "medium", or "complex" based on retrieval needs)
             - how_realistic: float, (How likely a developer would actually ask this, between 0 and 1)
 
         Generate questions that train the agent to use appropriate retrieval strategies while remaining practically useful to developers.
-
         {Response.model_json_schema()}
     """
     ).strip()
@@ -253,10 +252,8 @@ async def generate_and_write_synthetic_data(
     output_path.mkdir(exist_ok=True)
     
     # Get repositories for this split type
-    # repos = filter_repos(DB_PATH, split_type, min_func_count)
+    repos = filter_repos(DB_PATH, split_type, min_func_count)
 
-    repos = ["deepmind/sonnet", "angr/angr"]
-    
     if not repos:
         print(f"No repositories found for split type: {split_type}")
         return
@@ -320,11 +317,11 @@ async def main():
     
     # Generate data for train split
     print("\n=== Generating data for TRAIN split ===")
-    await generate_and_write_synthetic_data(output_dir, "train", min_func_count=50, batch_size=20)
+    await generate_and_write_synthetic_data(output_dir, "train", min_func_count=50, batch_size=25)
     
     # # Generate data for test split  
     # print("\n=== Generating data for TEST split ===")
-    # await generate_and_write_synthetic_data(output_dir, "test", min_func_count=50, batch_size=20)
+    # await generate_and_write_synthetic_data(output_dir, "test", min_func_count=50, batch_size=25)
     
     print("\nSynthetic data generation complete!")
     print("Check the 'synthetic_data' directory for generated JSONL files.")

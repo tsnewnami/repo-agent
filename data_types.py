@@ -11,7 +11,6 @@ class Function(BaseModel):
     code_tokens: str  # NOT NULL
 
 class Scenario(BaseModel):
-    id: int
     question: str
     answer: str
     repo: str

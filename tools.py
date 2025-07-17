@@ -114,7 +114,7 @@ def _search_with_fts(cursor, repo_name: str, keywords: List[str], max_results: i
     escaped_keywords = []
     for keyword in keywords:
         # Escape FTS5 special characters by wrapping in double quotes
-        if any(char in keyword for char in ['-', ' ', '"', '*']):
+        if any(char in keyword for char in ['-', ' ', '"', '*', '.', ':', '(', ')', '+']):
             # Escape any existing quotes and wrap in quotes
             escaped_keyword = '"' + keyword.replace('"', '""') + '"'
         else:
