@@ -8,7 +8,10 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 from rich import print
 from litellm import acompletion
-import load_scenarios
+import weave
+from judge import judge_answer
+
+from load_scenarios import load_scenarios_from_disk
 from tools import read_repo_function, search_repo
 from data_types import Function, Scenario
 from langchain_core.utils.function_calling import convert_to_openai_function
@@ -18,20 +21,17 @@ load_dotenv()
 
 litellm.cache = Cache(type=LiteLLMCacheType.DISK)
 
-# # Configure logging
-# logging.basicConfig(
-#     level=logging.INFO,
-#     format='%(asctime)s - %(levelname)s - %(message)s',
-#     datefmt='%Y-%m-%d %H:%M:%S'
-# )
+weave.init("repo-agent")
 
-class StructuredAnswer(BaseModel):
-    explanation: str
-    code_snippet: str
-    code_explanation: str
-    
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+
 class FinalAnswer(BaseModel):
-    structured_answer: StructuredAnswer
+    answer: str
     functions: list[str]
     
 MAX_TURNS = 10
@@ -61,11 +61,11 @@ async def run_agent(repo: str, input: str) -> FinalAnswer | None:
         """
         return read_repo_function(repo, func_path, func_name)
 
-    def return_answer(explanation: str, code_snippet: str, code_explanation: str, functions: list[str]) -> FinalAnswer:
+    def return_answer(answer: str, functions: list[str]) -> FinalAnswer:
         """
             Return the answer and the functions used to answer the question.
         """
-        return FinalAnswer(structured_answer=StructuredAnswer(explanation=explanation, code_snippet=code_snippet, code_explanation=code_explanation), functions=functions)
+        return FinalAnswer(answer=answer, functions=functions)
     
     tools = [search_functions, read_function, return_answer]
     tools_by_name = {tool.__name__: tool for tool in tools}
@@ -89,7 +89,7 @@ async def run_agent(repo: str, input: str) -> FinalAnswer | None:
     while turns < MAX_TURNS:
         logging.info(f"Turn {turns + 1}:")
         response = await acompletion(        
-            model="gpt-4.1",
+            model="openrouter/qwen/qwen3-14b",
             messages=messages,
             tools=tools,
             caching=True,
@@ -128,9 +128,20 @@ async def run_agent(repo: str, input: str) -> FinalAnswer | None:
     
     return None 
 
+@weave.op()
+async def run_agent_and_score(scenario: Scenario) -> tuple[FinalAnswer | None, float]:
+    answer = await run_agent(scenario.repo,scenario.question)
+    if answer is None:
+        logging.warn(f"Agent could not find an answer for scenario {scenario.question}")
+        return None, 0.0
+    
+    score = await judge_answer(scenario.question, scenario.answer, answer) 
+    
+    return answer, float(score.is_correct)
+
 if __name__ == "__main__":
-    scenarios = load_scenarios("synthetic_data/train.jsonl")
+    scenarios = load_scenarios_from_disk("synthetic_data/train.jsonl")
     first_scenario = next(scenarios)
-    print(f"Question: {first_scenario.question}")
-    answer = asyncio.run(run_agent(first_scenario.repo, first_scenario.question))
+    print(f"Question: {first_scenario}")
+    answer = asyncio.run(run_agent_and_score(first_scenario))
     print(f"Answer: {answer}")

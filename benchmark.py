@@ -50,7 +50,6 @@ async def test_flow(data_file: str, max_items: int = 40):
                         f"{agent_result.structured_answer.explanation} \n"
                         f"{agent_result.structured_answer.code_snippet} \n"
                         f"{agent_result.structured_answer.code_explanation} \n"
-                        f"Referenced functions: {agent_result.functions}"
                     )
                 )
                 print(f"Judge Result: {judge_result}")

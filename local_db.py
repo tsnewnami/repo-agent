@@ -280,5 +280,5 @@ def get_first_n_from_repo(repo_name: str, n: int = 3, db_path: str = DB_PATH):
     return ret
 
 if __name__ == "__main__":
-    generate_database(languages=["python", "go"], overwrite=True)
-    print(get_first_n_from_repo("bcbio/bcbio-nextgen"))
+    # generate_database(languages=["python", "go"], overwrite=False)
+    print(get_first_n_from_repo("0xfaded/eval"))

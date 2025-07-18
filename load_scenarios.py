@@ -4,7 +4,7 @@ from typing import Iterator
 from data_types import Scenario
 from rich import print
 
-def load_scenarios(file_path: str) -> Iterator[Scenario]:
+def load_scenarios_from_disk(file_path: str) -> Iterator[Scenario]:
     """Load scenarios sequentially from a JSONL file.
     
     Args:
@@ -23,15 +23,9 @@ def load_scenarios(file_path: str) -> Iterator[Scenario]:
 
 def main():
     """Load and print the first scenario from the training data."""
-    scenarios = load_scenarios("synthetic_data/train.jsonl")
+    scenarios = load_scenarios_from_disk("synthetic_data/train.jsonl")
     first_scenario = next(scenarios)
-    print("First loaded scenario:")
-    print(f"Question: {first_scenario.question}")
-    print(f"Answer: {first_scenario.answer}")
-    print(f"Repo: {first_scenario.repo}")
-    print(f"Functions: {first_scenario.functions}")
-    print(f"How realistic: {first_scenario.how_realistic}")
-    print(f"Split: {first_scenario.split}")
+    print(first_scenario)
 
 if __name__ == "__main__":
     main()
