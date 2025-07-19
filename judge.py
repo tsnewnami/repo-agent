@@ -18,7 +18,7 @@ async def judge_answer(question: str, ref_answer: str, answer: str) -> JudgeAnsw
         
         Your job is to determine if the answer given by the AI is correct. 
 
-        You return True the if the answer contains the relevant information from the reference answer. You should return False if it is missing information relevant to the question, or if it contradicts the reference answer.
+        You return True the if the AI answer contains the relevant information from the correct answer. You should return False if the AI answer is missing information relevant to the question, or if it contradicts the correct answer.
         
         --------------------------------------------------------------------------------
         JSON response format (no additional keys):

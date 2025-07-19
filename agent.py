@@ -36,6 +36,7 @@ class FinalAnswer(BaseModel):
     
 MAX_TURNS = 10
 
+@weave.op()
 async def run_agent(repo: str, input: str) -> FinalAnswer | None:
     SYSTEM_PROMPT = dedent(f"""
         You are a github repo searcher. You will be given a question about the code within the repo.
@@ -89,7 +90,7 @@ async def run_agent(repo: str, input: str) -> FinalAnswer | None:
     while turns < MAX_TURNS:
         logging.info(f"Turn {turns + 1}:")
         response = await acompletion(        
-            model="openrouter/qwen/qwen3-14b",
+            model="openrouter/qwen/qwen2.5-14b-instruct",
             messages=messages,
             tools=tools,
             caching=True,
@@ -122,14 +123,19 @@ async def run_agent(repo: str, input: str) -> FinalAnswer | None:
                 )
 
                 if tool_name == "return_answer":
+                    logging.info(f"Returning answer: {tool_result}")
                     return tool_result
         turns += 1
         
     
     return None 
 
+class AgentLoopResult(BaseModel):
+    answer: FinalAnswer | None
+    score: float 
+
 @weave.op()
-async def run_agent_and_score(scenario: Scenario) -> tuple[FinalAnswer | None, float]:
+async def run_agent_and_score(scenario: Scenario) -> AgentLoopResult:
     answer = await run_agent(scenario.repo,scenario.question)
     if answer is None:
         logging.warn(f"Agent could not find an answer for scenario {scenario.question}")
@@ -137,7 +143,7 @@ async def run_agent_and_score(scenario: Scenario) -> tuple[FinalAnswer | None, f
     
     score = await judge_answer(scenario.question, scenario.answer, answer) 
     
-    return answer, float(score.is_correct)
+    return AgentLoopResult(answer=answer, score=float(score.is_correct))
 
 if __name__ == "__main__":
     scenarios = load_scenarios_from_disk("synthetic_data/train.jsonl")

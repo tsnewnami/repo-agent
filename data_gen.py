@@ -315,16 +315,13 @@ async def main():
     """
     print("Starting synthetic data generation...")
     
-    # Generate data for train split
-    print("\n=== Generating data for TRAIN split ===")
-    await generate_and_write_synthetic_data(output_dir, "train", min_func_count=50, batch_size=25)
+    # # Generate data for train split
+    # print("\n=== Generating data for TRAIN split ===")
+    # await generate_and_write_synthetic_data(output_dir, "train", min_func_count=50, batch_size=25)
     
-    # # Generate data for test split  
-    # print("\n=== Generating data for TEST split ===")
-    # await generate_and_write_synthetic_data(output_dir, "test", min_func_count=50, batch_size=25)
-    
-    print("\nSynthetic data generation complete!")
-    print("Check the 'synthetic_data' directory for generated JSONL files.")
+    # Generate data for test split  
+    print("\n=== Generating data for TEST split ===")
+    await generate_and_write_synthetic_data(output_dir, "test", min_func_count=50, batch_size=25)
 
 if __name__ == "__main__":
     import asyncio

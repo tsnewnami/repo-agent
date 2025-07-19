@@ -7,6 +7,7 @@ requires-python = ">=3.10"
 dependencies = [
     "datasets>=3.6.0",
     "dotenv>=0.9.9",
+    "hfapi>=0.1b0",
     "langchain-core>=0.3.68",
     "litellm[caching]>=1.74.0.post1",
     "pydantic>=2.11.7",

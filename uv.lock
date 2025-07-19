@@ -525,6 +525,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "datasets" },
     { name = "dotenv" },
+    { name = "hfapi" },
     { name = "langchain-core" },
     { name = "litellm", extra = ["caching"] },
     { name = "pydantic" },
@@ -537,6 +538,7 @@ dependencies = [
 requires-dist = [
     { name = "datasets", specifier = ">=3.6.0" },
     { name = "dotenv", specifier = ">=0.9.9" },
+    { name = "hfapi", specifier = ">=0.1b0" },
     { name = "langchain-core", specifier = ">=0.3.68" },
     { name = "litellm", extras = ["caching"], specifier = ">=1.74.0.post1" },
     { name = "pydantic", specifier = ">=2.11.7" },
@@ -624,6 +626,20 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/f3/92/1d351ac6cef7c4ba8c85744d37ffbfac2d53d0a6c04d2cabeba614640a78/hf_xet-1.1.5-cp37-abi3-musllinux_1_2_aarch64.whl", hash = "sha256:ab34c4c3104133c495785d5d8bba3b1efc99de52c02e759cf711a91fd39d3a14", size = 3171009 },
     { url = "https://files.pythonhosted.org/packages/c9/65/4b2ddb0e3e983f2508528eb4501288ae2f84963586fbdfae596836d5e57a/hf_xet-1.1.5-cp37-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:83088ecea236d5113de478acb2339f92c95b4fb0462acaa30621fac02f5a534a", size = 3279245 },
     { url = "https://files.pythonhosted.org/packages/f0/55/ef77a85ee443ae05a9e9cba1c9f0dd9241eb42da2aeba1dc50f51154c81a/hf_xet-1.1.5-cp37-abi3-win_amd64.whl", hash = "sha256:73e167d9807d166596b4b2f0b585c6d5bd84a26dea32843665a8b58f6edba245", size = 2738931 },
+]
+
+[[package]]
+name = "hfapi"
+version = "0.1b0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "aiohttp" },
+    { name = "pydantic" },
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/80/94/942025e2890cbb1d06751da75fd00382127cc26dd5065f484ff2f4456fb6/hfapi-0.1b0.tar.gz", hash = "sha256:b175c4bc74a9f5fd75da1764380a3c80aff14ed1633ea04c9104c67399298cb7", size = 1934 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ad/e1/905b45b22c8bc095f0722463aceea9e7c12d7695e0a1b4c7611ed4c09ff8/hfapi-0.1b0-py3-none-any.whl", hash = "sha256:aba2eb5f9ee25be4c66f78f4ba15f60ba8533acb60bece0777baecf030a4dba9", size = 14173 },
 ]
 
 [[package]]

@@ -1,31 +1,29 @@
 import json
 from pathlib import Path
-from typing import Iterator
+from typing import Iterator, List, Literal
 from data_types import Scenario
+from datasets import load_dataset, Dataset
 from rich import print
 
-def load_scenarios_from_disk(file_path: str) -> Iterator[Scenario]:
-    """Load scenarios sequentially from a JSONL file.
-    
-    Args:
-        file_path: Path to the JSONL file containing scenarios
-        
-    Yields:
-        Scenario objects parsed from each line in the file
-    """
-    path = Path(file_path)
-    with path.open('r') as f:
-        for line in f:
-            line = line.strip()
-            if line:  # Skip empty lines
-                scenario_data = json.loads(line)
-                yield Scenario(**scenario_data)
+import dotenv
+dotenv.load_dotenv()
 
-def main():
-    """Load and print the first scenario from the training data."""
-    scenarios = load_scenarios_from_disk("synthetic_data/train.jsonl")
-    first_scenario = next(scenarios)
-    print(first_scenario)
+
+def download_dataset(name: str, split: Literal["train", "test"], limit: int = 1000, shuffle: bool = False) -> Dataset:
+    ds = load_dataset("JamesSED/synthetic_QA_code_search_net", split=split)
+    if limit:
+        ds = ds.select(range(limit))
+
+    if shuffle:
+        ds = ds.shuffle()
+
+    return ds
+   
+def load_scenarios(name: str, split: Literal["train", "test"], limit: int = 1000, shuffle: bool = False) -> List[Scenario]:
+    ds = download_dataset(name, split, limit, shuffle)
+    return [Scenario(**row) for row in ds]
+
+
 
 if __name__ == "__main__":
-    main()
+    print(load_scenarios("JamesSED/synthetic_QA_code_search_net", "train", limit=5, shuffle=True)[0])

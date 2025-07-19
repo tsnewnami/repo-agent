@@ -15,3 +15,4 @@ github_code.db
 .cache
 .litellm_cache
 /synthetic_data
+/data
