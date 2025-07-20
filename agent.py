@@ -11,7 +11,7 @@ from litellm import acompletion
 import weave
 from judge import judge_answer
 
-from load_scenarios import load_scenarios_from_disk
+from load_data import load_scenarios
 from tools import read_repo_function, search_repo
 from data_types import Function, Scenario
 from langchain_core.utils.function_calling import convert_to_openai_function
@@ -90,7 +90,7 @@ async def run_agent(repo: str, input: str) -> FinalAnswer | None:
     while turns < MAX_TURNS:
         logging.info(f"Turn {turns + 1}:")
         response = await acompletion(        
-            model="openrouter/qwen/qwen2.5-14b-instruct",
+            model="openrouter/qwen/qwen3-14b",
             messages=messages,
             tools=tools,
             caching=True,
@@ -146,8 +146,6 @@ async def run_agent_and_score(scenario: Scenario) -> AgentLoopResult:
     return AgentLoopResult(answer=answer, score=float(score.is_correct))
 
 if __name__ == "__main__":
-    scenarios = load_scenarios_from_disk("synthetic_data/train.jsonl")
-    first_scenario = next(scenarios)
-    print(f"Question: {first_scenario}")
-    answer = asyncio.run(run_agent_and_score(first_scenario))
+    scenarios = load_scenarios("synthetic_data/train.jsonl", split="train", limit=1, shuffle=True)
+    answer = asyncio.run(run_agent_and_score(scenarios[0]))
     print(f"Answer: {answer}")
