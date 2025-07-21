@@ -176,8 +176,8 @@ async def run_agent_and_score(
 
 if __name__ == "__main__":
     scenarios = load_scenarios(
-        "synthetic_data/train.jsonl", split="train", limit=1, shuffle=True
+        "synthetic_data/train.jsonl", split="train", limit=5, shuffle=True
     )
     model = art.Model(name="openai/gpt-4.1", project="gh-agent")
-    answer = asyncio.run(run_agent_and_score(model, scenarios[0]))
+    answer = asyncio.run(run_agent_and_score(model, scenarios[2]))
     print(f"Answer: {answer}")
