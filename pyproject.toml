@@ -10,6 +10,7 @@ dependencies = [
     "hfapi>=0.1b0",
     "langchain-core>=0.3.68",
     "litellm[caching]>=1.74.0.post1",
+    "openpipe-art>=0.4.4",
     "pydantic>=2.11.7",
     "richer>=0.1.6",
     "tqdm>=4.67.1",
