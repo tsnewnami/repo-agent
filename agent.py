@@ -23,7 +23,7 @@ load_dotenv()
 
 litellm.cache = Cache(type=LiteLLMCacheType.DISK)
 
-weave.init("repo-agent")
+# weave.init("repo-agent")
 
 # Configure logging
 # logging.basicConfig(

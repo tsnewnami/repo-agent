@@ -16,3 +16,5 @@ github_code.db
 .litellm_cache
 /synthetic_data
 /data
+.art   
+./wandb
