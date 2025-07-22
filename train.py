@@ -19,7 +19,7 @@ weave.init("gh-agent")
 
 async def train():
     # Generate database
-    generate_database(languages=["python", "go"], overwrite=False)
+    generate_database(languages=["python", "go"], overwrite=True)
 
     # Get training scenarios
     training_data = load_scenarios(

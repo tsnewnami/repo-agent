@@ -119,7 +119,7 @@ async def run_agent(model: art.Model, repo: str, question: str) -> ProjectTrajec
         # Terminate early. We always want tool calls. This indicates an issue.
         if response_message.tool_calls is None:
             logging.error(f"Response message has no tool calls for turn {turns}")
-            return None
+            return trajectory
 
         try:
             for tool_call in response.choices[0].message.tool_calls:
@@ -179,5 +179,5 @@ if __name__ == "__main__":
         "synthetic_data/train.jsonl", split="train", limit=5, shuffle=True
     )
     model = art.Model(name="openai/gpt-4.1", project="gh-agent")
-    answer = asyncio.run(run_agent_and_score(model, scenarios[2]))
+    answer = asyncio.run(run_agent_and_score(model, scenarios[0]))
     print(f"Answer: {answer}")
