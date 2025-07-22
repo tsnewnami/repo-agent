@@ -17,6 +17,7 @@ TRAINING_NUM_SCENARIOS = 1000
 dotenv.load_dotenv()
 weave.init("gh-agent")
 
+
 async def train():
     # Generate database
     generate_database(languages=["python", "go"], overwrite=True)
@@ -31,7 +32,7 @@ async def train():
 
     # Define trainable model
     model = art.TrainableModel(
-        base_model="Qwen/Qwen2.5-14B-Instruct",
+        base_model="Qwen/Qwen2.5-1.5B-Instruct",
         project="gh-agent",
         name="model_1",
     )
@@ -39,7 +40,6 @@ async def train():
     await model.register(LocalBackend())
 
     # Register model with vllm backend instance with LoRA
-
     training_iterator = iterate_dataset(
         training_data,
         groups_per_step=GROUPS_PER_STEP,
@@ -63,5 +63,4 @@ async def train():
 
 if __name__ == "__main__":
     import asyncio
-
     asyncio.run(train())
