@@ -15,9 +15,8 @@ VALIDATION_NUM_SCENARIOS = 100
 TRAINING_NUM_SCENARIOS = 1000
 
 dotenv.load_dotenv()
-weave.init("repo-agent")
+weave.init("side-project/repo-agent")
 
-@weave.op()
 async def train():
     # Generate database
     generate_database(languages=["python", "go"], overwrite=True)

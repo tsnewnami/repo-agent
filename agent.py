@@ -45,7 +45,6 @@ class ProjectTrajectory(art.Trajectory):
 MAX_TURNS = 10
 
 
-# @weave.op()
 async def run_agent(model: art.Model, repo: str, question: str) -> ProjectTrajectory:
     trajectory = ProjectTrajectory(reward=0.0, messages_and_choices=[])
 
