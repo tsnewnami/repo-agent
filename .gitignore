@@ -17,4 +17,4 @@ github_code.db
 /synthetic_data
 /data
 .art   
-./wandb
+/wandb

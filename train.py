@@ -12,7 +12,8 @@ GROUPS_PER_STEP = 12
 VALIDATION_NUM_SCENARIOS = 100
 TRAINING_NUM_SCENARIOS = 1000
 
-# weave.init("repo-agent")
+weave.init("gh-agent")
+
 
 async def train():
     # Generate database
@@ -32,7 +33,7 @@ async def train():
         project="gh-agent",
         name="model_1",
     )
-    
+
     await model.register(LocalBackend())
 
     # Register model with vllm backend instance with LoRA
@@ -53,11 +54,12 @@ async def train():
                     for _ in range(ROLLOUTS_PER_GROUP)
                 )
             )
-            
+
         finished_groups = await art.gather_trajectory_groups(groups)
         await model.train(finished_groups)
 
+
 if __name__ == "__main__":
     import asyncio
-    
+
     asyncio.run(train())
