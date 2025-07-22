@@ -8,7 +8,7 @@ dotenv.load_dotenv()
 
 
 def download_dataset(name: str, split: Literal["train", "test"], limit: int = 1000, shuffle: bool = False) -> Dataset:
-    ds = load_dataset("JamesSED/synthetic_QA_code_search_net", split=split)
+    ds = load_dataset(name, split=split)
     if limit:
         ds = ds.select(range(limit))
 

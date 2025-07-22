@@ -5,6 +5,8 @@ from load_data import load_scenarios
 from local_db import generate_database
 from art.local import LocalBackend
 from art.utils import iterate_dataset
+import dotenv
+
 
 ROLLOUTS_PER_GROUP = 4
 NUM_EPOCHS = 3
@@ -12,8 +14,8 @@ GROUPS_PER_STEP = 12
 VALIDATION_NUM_SCENARIOS = 100
 TRAINING_NUM_SCENARIOS = 1000
 
+dotenv.load_dotenv()
 weave.init("gh-agent")
-
 
 async def train():
     # Generate database
