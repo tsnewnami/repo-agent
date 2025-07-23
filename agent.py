@@ -177,6 +177,6 @@ if __name__ == "__main__":
     scenarios = load_scenarios(
         "synthetic_data/train.jsonl", split="train", limit=5, shuffle=True
     )
-    model = art.Model(name="openai/gpt-4.1", project="gh-agent")
+    model = art.Model(name="openai/gpt-4.1", project="rl-agent")
     answer = asyncio.run(run_agent_and_score(model, scenarios[0]))
     print(f"Answer: {answer}")

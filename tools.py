@@ -124,7 +124,7 @@ def _search_with_fts(
     for keyword in keywords:
         # Escape FTS5 special characters by wrapping in double quotes
         if any(
-            char in keyword for char in ["-", " ", '"', "*", ".", ":", "(", ")", "+"]
+            char in keyword for char in ["-", " ", '"', "'", "*", ".", ":", "(", ")", "+"]
         ):
             # Escape any existing quotes and wrap in quotes
             escaped_keyword = '"' + keyword.replace('"', '""') + '"'

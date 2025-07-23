@@ -33,7 +33,7 @@ async def train(model):
     # Define trainable model
     model = art.TrainableModel(
         base_model=model,
-        project="gh-agent",
+        project="rl-agent",
         name="model_1",
     )
 
