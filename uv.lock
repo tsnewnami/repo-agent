@@ -3629,6 +3629,7 @@ dependencies = [
     { name = "setuptools" },
     { name = "tqdm" },
     { name = "trl" },
+    { name = "wandb" },
     { name = "weave" },
 ]
 
@@ -3648,6 +3649,7 @@ requires-dist = [
     { name = "setuptools", specifier = ">=79.0.1" },
     { name = "tqdm", specifier = ">=4.67.1" },
     { name = "trl", specifier = ">=0.15.2" },
+    { name = "wandb", specifier = ">=0.21.0" },
     { name = "weave", specifier = ">=0.51.56" },
 ]
 

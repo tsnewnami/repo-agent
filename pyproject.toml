@@ -19,5 +19,6 @@ dependencies = [
     "setuptools>=79.0.1",
     "tqdm>=4.67.1",
     "trl>=0.15.2",
+    "wandb>=0.21.0",
     "weave>=0.51.56",
 ]

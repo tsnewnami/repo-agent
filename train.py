@@ -1,4 +1,5 @@
 import art
+import wandb
 import weave
 from agent import run_agent_and_score
 from load_data import load_scenarios
@@ -18,7 +19,7 @@ dotenv.load_dotenv()
 weave.init("side-project/rl-agent")
 
 
-async def train(model): 
+async def train(model):
     # Generate database
     generate_database(languages=["python", "go"], overwrite=True)
 
@@ -58,6 +59,17 @@ async def train(model):
             )
 
         finished_groups = await art.gather_trajectory_groups(groups)
+
+        # Calculate average reward across all trajectories in the batch
+        all_trajectories = [t for group in finished_groups for t in group.trajectories]
+        avg_reward = sum(t.reward for t in all_trajectories) / len(all_trajectories)
+
+        wandb.log(
+            {
+                "avg_reward": avg_reward,
+                "global_step": global_step,
+            }
+        )
         await model.train(finished_groups)
 
 
@@ -69,7 +81,16 @@ if __name__ == "__main__":
     parser.add_argument("--model", type=str, required=True)
     args = parser.parse_args()
 
-    model = args.model
-    print(f"Args: {args}")
-    asyncio.run(train(model)) 
+    model_name = args.model
 
+    wandb.init(
+        project="side-project",
+        name="rl-agent",
+        config={
+            "model": model_name,
+            "dataset": "JamesSED/synthetic_QA_code_search_net",
+        },
+    )
+
+    asyncio.run(train(model_name))
+    wandb.finish()

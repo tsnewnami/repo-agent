@@ -3,6 +3,7 @@ import json
 import logging
 import art
 import litellm
+import wandb
 
 from textwrap import dedent
 from pydantic import BaseModel
@@ -23,9 +24,9 @@ load_dotenv()
 
 litellm.cache = Cache(type=LiteLLMCacheType.DISK)
 
-# weave.init("repo-agent")
+# weave.init("side-project/rl-agent")
 
-# Configure logging
+# # Configure logging
 # logging.basicConfig(
 #     level=logging.INFO,
 #     format="%(asctime)s - %(levelname)s - %(message)s",
@@ -135,9 +136,7 @@ async def run_agent(model: art.Model, repo: str, question: str) -> ProjectTrajec
                             "tool_call_id": tool_call.id,
                             "name": tool_name,
                             "content": (
-                                "Empty tool result"
-                                if tool_result is None
-                                else str(tool_result)
+                                "" if tool_result is None else str(tool_result)
                             ),
                         }
                     )
@@ -166,7 +165,7 @@ async def run_agent_and_score(
             f"Agent could not find an answer for scenario {scenario.question}"
         )
         return trajectory
-    
+
     score = await judge_answer(scenario.question, scenario.answer, trajectory.answer)
     trajectory.reward = float(score.is_correct)
 
@@ -174,9 +173,14 @@ async def run_agent_and_score(
 
 
 if __name__ == "__main__":
+    # Initialize Weights & Biases
+    model_name = "openrouter/qwen/qwen3-32b"
+    
+
     scenarios = load_scenarios(
-        "synthetic_data/train.jsonl", split="train", limit=5, shuffle=True
+        "JamesSED/synthetic_QA_code_search_net", split="train", limit=50, shuffle=True
     )
-    model = art.Model(name="openai/gpt-4.1", project="rl-agent")
-    answer = asyncio.run(run_agent_and_score(model, scenarios[0]))
-    print(f"Answer: {answer}")
+    model = art.Model(name=model_name, project="rl-agent")
+
+    for i in range(40, 50):
+        answer = asyncio.run(run_agent_and_score(model, scenarios[i]))
