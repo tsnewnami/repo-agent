@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "argparse>=1.4.0",
     "datasets>=3.6.0",
     "dotenv>=0.9.9",
     "hfapi>=0.1b0",
@@ -15,6 +16,7 @@ dependencies = [
     "pydantic>=2.11.7",
     "richer>=0.1.6",
     "setproctitle>=1.3.6",
+    "setuptools>=79.0.1",
     "tqdm>=4.67.1",
     "trl>=0.15.2",
     "weave>=0.51.56",

@@ -15,11 +15,12 @@ VALIDATION_NUM_SCENARIOS = 100
 TRAINING_NUM_SCENARIOS = 1000
 
 dotenv.load_dotenv()
-weave.init("side-project/repo-agent")
+weave.init("jamutexj/rl-agent")
 
-async def train():
+
+async def train(model, overwrite_db):
     # Generate database
-    generate_database(languages=["python", "go"], overwrite=True)
+    generate_database(languages=["python", "go"], overwrite=overwrite_db)
 
     # Get training scenarios
     training_data = load_scenarios(
@@ -31,7 +32,7 @@ async def train():
 
     # Define trainable model
     model = art.TrainableModel(
-        base_model="Qwen/Qwen2.5-1.5B-Instruct",
+        base_model=model,
         project="gh-agent",
         name="model_1",
     )
@@ -62,4 +63,14 @@ async def train():
 
 if __name__ == "__main__":
     import asyncio
-    asyncio.run(train())
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model", type=str, required=True, default="Qwen/Qwen2.5-14B-Instruct")
+    parser.add_argument("--overwrite_db", type=bool, default=True)
+    args = parser.parse_args()
+
+    model = args.model
+    overwrite_db = args.overwrite_db
+
+    asyncio.run(train(model, overwrite_db))
