@@ -84,8 +84,7 @@ if __name__ == "__main__":
     model_name = args.model
 
     wandb.init(
-        project="side-project",
-        name="rl-run-00",
+        project="side-project/rl-run-00",
         config={
             "model": model_name,
             "dataset": "JamesSED/synthetic_QA_code_search_net",
