@@ -13,10 +13,10 @@ ROLLOUTS_PER_GROUP = 4
 NUM_EPOCHS = 3
 GROUPS_PER_STEP = 12
 VALIDATION_NUM_SCENARIOS = 100
-TRAINING_NUM_SCENARIOS = 1000
+TRAINING_NUM_SCENARIOS = 300
 
 dotenv.load_dotenv()
-weave.init("side-project/rl-agent")
+weave.init("side-project/rl-run-00")
 
 
 async def train(model):
@@ -35,7 +35,7 @@ async def train(model):
     model = art.TrainableModel(
         base_model=model,
         project="rl-agent",
-        name="model_1",
+        name="qwen2.5-32b-instruct",
     )
 
     await model.register(LocalBackend())
@@ -85,7 +85,7 @@ if __name__ == "__main__":
 
     wandb.init(
         project="side-project",
-        name="rl-agent",
+        name="rl-run-00",
         config={
             "model": model_name,
             "dataset": "JamesSED/synthetic_QA_code_search_net",

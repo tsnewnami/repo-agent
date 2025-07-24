@@ -24,9 +24,9 @@ load_dotenv()
 
 litellm.cache = Cache(type=LiteLLMCacheType.DISK)
 
-# weave.init("side-project/rl-agent")
+weave.init("side-project/agent-benchmark")
 
-# # Configure logging
+# Configure logging
 # logging.basicConfig(
 #     level=logging.INFO,
 #     format="%(asctime)s - %(levelname)s - %(message)s",
@@ -173,14 +173,22 @@ async def run_agent_and_score(
 
 
 if __name__ == "__main__":
-    # Initialize Weights & Biases
     model_name = "openrouter/qwen/qwen3-32b"
-    
 
     scenarios = load_scenarios(
-        "JamesSED/synthetic_QA_code_search_net", split="train", limit=50, shuffle=True
+        "JamesSED/synthetic_QA_code_search_net", split="train", limit=1000, shuffle=False
     )
     model = art.Model(name=model_name, project="rl-agent")
+    step = 0
+    scores = []
+    for scenario in scenarios:
+        print("--------------------------------")
+        print(f"Step {step}: {scenario.question}")
+        score = asyncio.run(run_agent_and_score(model, scenario))
+        print(f"Score: {score.reward}")
+        scores.append(score.reward)
+        if step == 50:
+            break
+        step += 1
 
-    for i in range(40, 50):
-        answer = asyncio.run(run_agent_and_score(model, scenarios[i]))
+    print(f"Average score: {sum(scores)/len(scores)}")
