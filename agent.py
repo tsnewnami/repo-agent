@@ -24,7 +24,7 @@ load_dotenv()
 
 litellm.cache = Cache(type=LiteLLMCacheType.DISK)
 
-weave.init("side-project/agent-benchmark")
+# weave.init("side-project/agent-benchmark")
 
 # Configure logging
 # logging.basicConfig(
